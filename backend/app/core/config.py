@@ -13,6 +13,9 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    # Render environment (Render auto-injects RENDER_EXTERNAL_URL)
+    RENDER_EXTERNAL_URL: str = ""
+
     # Supabase config
     NEXT_PUBLIC_SUPABASE_URL: str = ""
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: str = ""
