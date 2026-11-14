@@ -19,9 +19,9 @@ import { TradesTable } from "@/components/backtesting/TradesTable";
 export default function BacktestingPage() {
   const [config, setConfig] = useState<BacktestConfig>({
     strategy: "sma_crossover",
-    symbol: "BTC/USDT",
+    symbol: "NIFTY50",
     timeframe: "1h",
-    initialCapital: 10000,
+    initialCapital: 500000,
     dateRangeDays: 90,
     slippagePct: 0.05,
     feePct: 0.075,

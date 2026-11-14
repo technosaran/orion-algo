@@ -72,10 +72,10 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
       "Exit Price",
       "Size",
       "Invested",
-      "PnL ($)",
+      "PnL (₹)",
       "PnL (%)",
       "Exit Reason",
-      "Fees ($)",
+      "Fees (₹)",
       "Duration (Bars)",
     ];
     const rows = trades.map((t) => [
@@ -273,10 +273,10 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
                       })}
                     </td>
                     <td className="py-2.5 px-3 text-right text-white font-medium">
-                      ${trade.entryPrice.toLocaleString()}
+                      ₹{trade.entryPrice.toLocaleString("en-IN")}
                     </td>
                     <td className="py-2.5 px-3 text-right text-white font-medium">
-                      ${trade.exitPrice.toLocaleString()}
+                      ₹{trade.exitPrice.toLocaleString("en-IN")}
                     </td>
                     <td className="py-2.5 px-3 text-right text-[#94a3b8]">
                       {trade.size}
@@ -287,7 +287,7 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
                       }`}
                     >
                       {isWin ? "+" : ""}
-                      ${trade.pnl.toFixed(2)}
+                      ₹{trade.pnl.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </td>
                     <td
                       className={`py-2.5 px-3 text-right font-bold ${
@@ -319,7 +319,7 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-right text-[#64748b]">
-                      ${trade.feePaid.toFixed(2)}
+                      ₹{trade.feePaid.toFixed(2)}
                     </td>
                   </tr>
                 );

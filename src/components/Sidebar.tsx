@@ -36,14 +36,12 @@ export function Sidebar() {
       label: "Backtesting",
       icon: FlaskConical,
       active: pathname.startsWith("/backtesting"),
-      badge: "PRO",
     },
     {
       href: "/paper-trading",
       label: "Paper Trading",
       icon: CandlestickChart,
       active: pathname.startsWith("/paper-trading"),
-      badge: "SIM",
     },
   ];
 
@@ -101,24 +99,7 @@ export function Sidebar() {
               title={collapsed ? item.label : undefined}
             >
               <Icon className="w-5 h-5 shrink-0 text-emerald-400" />
-              {!collapsed && (
-                <div className="flex items-center justify-between flex-1">
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span
-                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-semibold ${
-                        item.badge === "SIM"
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                          : item.badge === "LIVE"
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 animate-pulse"
-                          : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              )}
+              {!collapsed && <span>{item.label}</span>}
             </Link>
           );
         })}

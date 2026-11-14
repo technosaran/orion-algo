@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Layers,
   ChevronRight,
@@ -12,8 +12,14 @@ import {
 } from "lucide-react";
 
 import { StrategyConfig, BacktestResult } from "@/types/strategy";
-import { STRATEGY_TEMPLATES } from "@/lib/strategy-templates";
 import { runBacktest } from "@/lib/backtest-engine";
+import {
+  getStrategiesFromDb,
+  saveStrategyToDb,
+  deleteStrategyFromDb,
+  saveBacktestToDb,
+} from "@/lib/strategies-service";
+
 import { StrategyHeader } from "@/components/strategy-builder/StrategyHeader";
 import { GeneralInfoSection } from "@/components/strategy-builder/GeneralInfoSection";
 import { EntryConditionsSection } from "@/components/strategy-builder/EntryConditionsSection";
@@ -23,26 +29,84 @@ import { BacktestResultsSection } from "@/components/strategy-builder/BacktestRe
 import { CodeExportModal } from "@/components/strategy-builder/CodeExportModal";
 import { TemplatesModal } from "@/components/strategy-builder/TemplatesModal";
 
-const STORAGE_KEY = "orion_algo_active_strategy";
-const SAVED_LIST_KEY = "orion_algo_saved_strategies";
+function createBlankStrategy(): StrategyConfig {
+  return {
+    id: "strat-blank",
+    name: "New Indian Strategy",
+    description: "",
+    category: "momentum",
+    assetClass: "nse_fno",
+    symbol: "NIFTY 50",
+    productType: "MIS",
+    currency: "INR",
+    timeframe: "5m",
+    direction: "long",
+    orderType: "market",
+    initialCapital: 100000,
+    entryGroups: [
+      {
+        id: "group-1",
+        logic: "AND",
+        conditions: [
+          {
+            id: "cond-1",
+            leftIndicator: {
+              id: "ind-close",
+              type: "PRICE_CLOSE",
+              params: {},
+              offset: 1,
+            },
+            operator: "crosses_above",
+            compareType: "indicator",
+            rightIndicator: {
+              id: "ind-ema",
+              type: "EMA",
+              params: { period: 20 },
+              offset: 1,
+            },
+          },
+        ],
+      },
+    ],
+    customExitEnabled: false,
+    exitGroups: [],
+    riskManagement: {
+      stopLossType: "percentage",
+      stopLossValue: 1.0,
+      takeProfitType: "percentage",
+      takeProfitValue: 2.5,
+      useTrailingStop: true,
+      trailingStopActivation: 1.2,
+      trailingStopStep: 0.5,
+      intradaySquareOff: true,
+      squareOffTime: "15:15",
+      maxHoldingBars: 36,
+      maxDailyDrawdownPct: 3.0,
+      maxConsecutiveLosses: 3,
+    },
+    positionSizing: {
+      sizingType: "lots",
+      sizingValue: 1,
+      lotSize: 25,
+      maxOpenPositions: 1,
+      maxLeverage: 1,
+      slippagePct: 0.02,
+      feePerOrder: 20,
+      sttTaxPct: 0.0125,
+    },
+    status: "draft",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
 
 export default function StrategyBuilderPage() {
-  // Strategy state with safe initial load
-  const [strategy, setStrategy] = useState<StrategyConfig>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          return JSON.parse(saved);
-        }
-      } catch (e) {
-        console.warn("Could not load strategy from localStorage:", e);
-      }
-    }
-    return { ...STRATEGY_TEMPLATES[0], id: `strat-initial` };
-  });
+  // Strategy state
+  const [strategy, setStrategy] = useState<StrategyConfig>(() => createBlankStrategy());
+  const [savedStrategies, setSavedStrategies] = useState<StrategyConfig[]>([]);
+  const [dbSource, setDbSource] = useState<"database" | "local">("local");
 
-  // Backtest result state
+  // Backtest result state (null initially - NO dummy data)
   const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
   const [isBacktesting, setIsBacktesting] = useState(false);
 
@@ -54,6 +118,22 @@ export default function StrategyBuilderPage() {
   const [isCodeExportOpen, setIsCodeExportOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
+  // Load saved strategies from the database on mount
+  useEffect(() => {
+    let mounted = true;
+    getStrategiesFromDb().then(({ strategies, source }) => {
+      if (!mounted) return;
+      setDbSource(source);
+      if (strategies.length > 0) {
+        setSavedStrategies(strategies);
+        setStrategy(strategies[0]);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Update strategy state handler
   const handleUpdateStrategy = (updated: Partial<StrategyConfig>) => {
     setStrategy((prev) => ({
@@ -63,59 +143,116 @@ export default function StrategyBuilderPage() {
     }));
   };
 
-  // Run backtest simulation
-  const handleRunBacktest = () => {
+  // Run backtest simulation on real market data and save result to database
+  const handleRunBacktest = async () => {
     setIsBacktesting(true);
-    // Micro delay to simulate quant computation & give smooth UI feedback
-    setTimeout(() => {
-      try {
-        const res = runBacktest(strategy);
-        setBacktestResult(res);
-        handleUpdateStrategy({ status: "backtested" });
-        // If in tabbed view, switch to results tab
-        if (activeTab !== "all") {
-          setActiveTab("5");
-        }
-      } catch (err) {
-        console.error("Backtest simulation error:", err);
-      } finally {
-        setIsBacktesting(false);
-      }
-    }, 450);
-  };
-
-  // Save strategy to localStorage
-  const handleSave = () => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(strategy));
-      
-      // Also update saved strategies list
-      const savedListRaw = localStorage.getItem(SAVED_LIST_KEY);
-      const savedList: StrategyConfig[] = savedListRaw ? JSON.parse(savedListRaw) : [];
-      const existingIdx = savedList.findIndex((s) => s.id === strategy.id);
-      if (existingIdx >= 0) {
-        savedList[existingIdx] = strategy;
-      } else {
-        savedList.unshift(strategy);
+      // 1. Fetch real historical candles for this strategy's symbol and timeframe
+      let realBars: any[] | undefined = undefined;
+      try {
+        const res = await fetch(
+          `/api/market-data/history?symbol=${encodeURIComponent(strategy.symbol)}&timeframe=${strategy.timeframe}&limit=150`
+        );
+        if (res.ok) {
+          const json = await res.json();
+          if (json.candles && Array.isArray(json.candles) && json.candles.length >= 10) {
+            realBars = json.candles.map((c: any) => ({
+              time: c.time,
+              timestamp: c.timestamp,
+              open: c.open,
+              high: c.high,
+              low: c.low,
+              close: c.close,
+              volume: c.volume,
+            }));
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch real bars for strategy backtest:", e);
       }
-      localStorage.setItem(SAVED_LIST_KEY, JSON.stringify(savedList));
 
-      setSaveStatus("Saved!");
-      setTimeout(() => setSaveStatus(null), 2500);
-    } catch (e) {
-      console.error("Error saving strategy:", e);
+      const res = runBacktest(strategy, 200, realBars);
+      setBacktestResult(res);
+      handleUpdateStrategy({ status: "backtested" });
+
+      // 2. Save backtest record to Supabase database
+      await saveBacktestToDb(strategy, res);
+
+      // If in tabbed view, switch to results tab
+      if (activeTab !== "all") {
+        setActiveTab("5");
+      }
+    } catch (err) {
+      console.error("Backtest simulation error:", err);
+    } finally {
+      setIsBacktesting(false);
     }
   };
 
-  // Reset strategy to default
-  const handleReset = () => {
-    if (confirm("Reset current strategy to default template?")) {
-      setStrategy({ ...STRATEGY_TEMPLATES[0], id: `strat-${Date.now()}` });
+  // Save strategy to Database (Supabase)
+  const handleSave = async () => {
+    setSaveStatus("Saving...");
+    try {
+      const res = await saveStrategyToDb(strategy);
+      setDbSource(res.source);
+      setSaveStatus(res.source === "database" ? "Synced to DB!" : "Saved locally");
+
+      // Update in-memory list
+      setSavedStrategies((prev) => {
+        const idx = prev.findIndex((s) => s.id === strategy.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = strategy;
+          return next;
+        }
+        return [strategy, ...prev];
+      });
+
+      setTimeout(() => setSaveStatus(null), 3000);
+    } catch (e) {
+      console.error("Error saving strategy:", e);
+      setSaveStatus("Save failed");
+      setTimeout(() => setSaveStatus(null), 2500);
+    }
+  };
+
+  // Delete strategy from Database
+  const handleDeleteStrategy = async (id: string) => {
+    await deleteStrategyFromDb(id);
+    const updated = savedStrategies.filter((s) => s.id !== id);
+    setSavedStrategies(updated);
+    if (strategy.id === id) {
+      if (updated.length > 0) {
+        setStrategy(updated[0]);
+      } else {
+        setStrategy(createBlankStrategy());
+      }
       setBacktestResult(null);
     }
   };
 
-  // Load a chosen template
+  // Reset strategy to blank
+  const handleReset = () => {
+    if (confirm("Reset current canvas to a new blank strategy?")) {
+      setStrategy(createBlankStrategy());
+      setBacktestResult(null);
+    }
+  };
+
+  // Create new blank strategy
+  const handleNewBlankStrategy = () => {
+    const blank = createBlankStrategy();
+    setStrategy(blank);
+    setBacktestResult(null);
+  };
+
+  // Select a saved strategy from database
+  const handleSelectStrategy = (selected: StrategyConfig) => {
+    setStrategy(selected);
+    setBacktestResult(null);
+  };
+
+  // Load a chosen template preset
   const handleSelectTemplate = (template: StrategyConfig) => {
     setStrategy({
       ...template,
@@ -126,7 +263,11 @@ export default function StrategyBuilderPage() {
     setBacktestResult(null);
   };
 
-  const navSections = [
+  const navSections: {
+    id: "all" | "1" | "2" | "3" | "4" | "5";
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }[] = [
     { id: "all", label: "Full Strategy View", icon: Layers },
     { id: "1", label: "01 Architecture", icon: Sliders },
     { id: "2", label: "02 Entry Signals", icon: TrendingUp },
@@ -140,7 +281,11 @@ export default function StrategyBuilderPage() {
       {/* Top Header */}
       <StrategyHeader
         strategy={strategy}
+        savedStrategies={savedStrategies}
         onUpdateStrategy={handleUpdateStrategy}
+        onSelectStrategy={handleSelectStrategy}
+        onNewBlankStrategy={handleNewBlankStrategy}
+        onDeleteStrategy={handleDeleteStrategy}
         onRunBacktest={handleRunBacktest}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
         onOpenCodeExport={() => setIsCodeExportOpen(true)}
@@ -148,6 +293,7 @@ export default function StrategyBuilderPage() {
         onReset={handleReset}
         isBacktesting={isBacktesting}
         saveStatus={saveStatus}
+        dbSource={dbSource}
       />
 
       {/* Section Sub-Navigation Tabs */}
@@ -159,7 +305,7 @@ export default function StrategyBuilderPage() {
             return (
               <button
                 key={sec.id}
-                onClick={() => setActiveTab(sec.id as any)}
+                onClick={() => setActiveTab(sec.id)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   isActive
                     ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-semibold"
@@ -177,7 +323,7 @@ export default function StrategyBuilderPage() {
         </div>
 
         <div className="hidden lg:flex items-center gap-2 text-xs text-[#64748b]">
-          <span>Strategy Builder Engine</span>
+          <span>Indian Strategy Engine</span>
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-[#94a3b8] font-mono">{strategy.name}</span>
         </div>
@@ -221,6 +367,7 @@ export default function StrategyBuilderPage() {
               })
             }
             initialCapital={strategy.initialCapital}
+            symbol={strategy.symbol}
           />
         )}
 

@@ -7,6 +7,7 @@ import {
   SymbolDefinition,
   TradeRecord,
 } from "./types";
+import { saveLabBacktestToDb } from "@/lib/strategies-service";
 
 export const AVAILABLE_STRATEGIES: StrategyDefinition[] = [
   {
@@ -64,15 +65,19 @@ export const AVAILABLE_STRATEGIES: StrategyDefinition[] = [
 ];
 
 export const AVAILABLE_SYMBOLS: SymbolDefinition[] = [
-  { symbol: "BTC/USDT", name: "Bitcoin / Tether", category: "Crypto Major", assetClass: "Crypto", basePrice: 64500 },
-  { symbol: "ETH/USDT", name: "Ethereum / Tether", category: "Crypto Major", assetClass: "Crypto", basePrice: 3450 },
-  { symbol: "SOL/USDT", name: "Solana / Tether", category: "Crypto Alt", assetClass: "Crypto", basePrice: 175 },
   { symbol: "NIFTY50", name: "Nifty 50 Index", category: "Indian Benchmark", assetClass: "Equities", basePrice: 24200 },
   { symbol: "BANKNIFTY", name: "Nifty Bank Index", category: "Indian Banking", assetClass: "Equities", basePrice: 51500 },
-  { symbol: "AAPL", name: "Apple Inc.", category: "Tech Mega-cap", assetClass: "Equities", basePrice: 225 },
-  { symbol: "TSLA", name: "Tesla Inc.", category: "Automotive / EV", assetClass: "Equities", basePrice: 245 },
-  { symbol: "NVDA", name: "NVIDIA Corp.", category: "Semiconductors", assetClass: "Equities", basePrice: 138 },
-  { symbol: "XAU/USD", name: "Gold Spot / USD", category: "Precious Metals", assetClass: "Commodities", basePrice: 2680 },
+  { symbol: "FINNIFTY", name: "Nifty Fin Services", category: "Indian Financials", assetClass: "Equities", basePrice: 23890 },
+  { symbol: "SENSEX", name: "BSE SENSEX", category: "BSE Benchmark", assetClass: "Equities", basePrice: 79480 },
+  { symbol: "RELIANCE", name: "Reliance Industries", category: "Energy / Telecom", assetClass: "Equities", basePrice: 1265 },
+  { symbol: "HDFCBANK", name: "HDFC Bank Ltd.", category: "Private Banking", assetClass: "Equities", basePrice: 1742 },
+  { symbol: "TCS", name: "Tata Consultancy Services", category: "IT Services", assetClass: "Equities", basePrice: 4120 },
+  { symbol: "INFY", name: "Infosys Ltd.", category: "IT Services", assetClass: "Equities", basePrice: 1865 },
+  { symbol: "ICICIBANK", name: "ICICI Bank Ltd.", category: "Private Banking", assetClass: "Equities", basePrice: 1278 },
+  { symbol: "TATAMOTORS", name: "Tata Motors Ltd.", category: "Automotive / EV", assetClass: "Equities", basePrice: 785 },
+  { symbol: "SBIN", name: "State Bank of India", category: "PSU Banking", assetClass: "Equities", basePrice: 812 },
+  { symbol: "CRUDEOIL", name: "Crude Oil (MCX)", category: "Energy Commodity", assetClass: "Commodities", basePrice: 5840 },
+  { symbol: "GOLD", name: "Gold Mini (MCX)", category: "Precious Metals", assetClass: "Commodities", basePrice: 76250 },
 ];
 
 export interface PresetStrategy {
@@ -86,55 +91,55 @@ export interface PresetStrategy {
 export const STRATEGY_PRESETS: PresetStrategy[] = [
   {
     id: "preset_golden_cross",
-    title: "Golden Cross (50/200)",
+    title: "Nifty Golden Cross (50/200)",
     subtitle: "Institutional Macro Trend Following",
     tag: "High Win Rate",
     config: {
       strategy: "sma_crossover",
-      symbol: "BTC/USDT",
+      symbol: "NIFTY50",
       timeframe: "1d",
       dateRangeDays: 180,
-      initialCapital: 10000,
+      initialCapital: 500000,
       leverage: 1.0,
-      stopLossPct: 4.0,
-      takeProfitPct: 15.0,
-      trailingStopPct: 3.5,
+      stopLossPct: 2.5,
+      takeProfitPct: 8.0,
+      trailingStopPct: 2.0,
       strategyParams: { fast_period: 20, slow_period: 50 },
     },
   },
   {
     id: "preset_rsi_dip",
-    title: "RSI Dip Sniper",
+    title: "BankNifty RSI Dip Sniper",
     subtitle: "High-probability oversold bounces",
     tag: "Mean Reversion",
     config: {
       strategy: "rsi_momentum",
-      symbol: "ETH/USDT",
+      symbol: "BANKNIFTY",
       timeframe: "1h",
       dateRangeDays: 90,
-      initialCapital: 10000,
-      leverage: 2.0,
-      stopLossPct: 2.0,
-      takeProfitPct: 5.5,
-      trailingStopPct: 1.5,
+      initialCapital: 500000,
+      leverage: 1.0,
+      stopLossPct: 1.5,
+      takeProfitPct: 4.5,
+      trailingStopPct: 1.2,
       strategyParams: { rsi_period: 14, oversold: 30, overbought: 70 },
     },
   },
   {
     id: "preset_ema_scalp",
-    title: "EMA 9/21 Scalper",
+    title: "Reliance EMA 9/21 Scalper",
     subtitle: "Aggressive intra-day trend continuation",
     tag: "Day Trading",
     config: {
       strategy: "ema_crossover",
-      symbol: "SOL/USDT",
+      symbol: "RELIANCE",
       timeframe: "15m",
       dateRangeDays: 30,
-      initialCapital: 5000,
-      leverage: 3.0,
-      stopLossPct: 1.8,
-      takeProfitPct: 4.2,
-      trailingStopPct: 1.2,
+      initialCapital: 250000,
+      leverage: 1.0,
+      stopLossPct: 1.2,
+      takeProfitPct: 3.2,
+      trailingStopPct: 1.0,
       strategyParams: { fast_period: 9, slow_period: 21 },
     },
   },
@@ -148,7 +153,7 @@ export const STRATEGY_PRESETS: PresetStrategy[] = [
       symbol: "NIFTY50",
       timeframe: "1h",
       dateRangeDays: 120,
-      initialCapital: 25000,
+      initialCapital: 1000000,
       leverage: 1.0,
       stopLossPct: 1.5,
       takeProfitPct: 4.0,
@@ -369,12 +374,18 @@ function generateSyntheticCandles(
   return candles;
 }
 
-export function runClientBacktest(config: BacktestConfig): BacktestResult {
-  const candles = generateSyntheticCandles(
-    config.symbol,
-    config.timeframe,
-    config.dateRangeDays
-  );
+export function runClientBacktest(
+  config: BacktestConfig,
+  providedCandles?: Candle[]
+): BacktestResult {
+  const candles =
+    providedCandles && providedCandles.length >= 10
+      ? providedCandles
+      : generateSyntheticCandles(
+          config.symbol,
+          config.timeframe,
+          config.dateRangeDays
+        );
 
   const closes = candles.map((c) => c.close);
   const highs = candles.map((c) => c.high);
@@ -828,7 +839,7 @@ export async function runServerOrClientBacktest(
 
       if (res.ok) {
         const data = await res.json();
-        return {
+        const serverResult: BacktestResult = {
           ...data,
           summary: {
             initialCapital: data.summary.initial_capital,
@@ -880,11 +891,47 @@ export async function runServerOrClientBacktest(
           monthlyReturns: data.monthly_returns || {},
           source: "server",
         };
+
+        // Persist to Supabase Database
+        await saveLabBacktestToDb(config, serverResult);
+        return serverResult;
       }
     } catch {
-      // Fallback silently to client simulation
+      // Fallback silently to real market data client simulation
     }
   }
 
-  return runClientBacktest(config);
+  // Fetch real historical candles from our market data API (100% Real Market Data)
+  try {
+    const encSymbol = encodeURIComponent(config.symbol);
+    const res = await fetch(
+      `/api/market-data/history?symbol=${encSymbol}&timeframe=${config.timeframe}&limit=120`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.candles && Array.isArray(data.candles) && data.candles.length >= 10) {
+        const realCandles: Candle[] = data.candles.map((c: any) => ({
+          timestamp: new Date(c.timestamp).toISOString(),
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+          volume: c.volume,
+        }));
+
+        const result = runClientBacktest(config, realCandles);
+        result.source = "real_market_data" as any;
+
+        // Auto-save to Supabase Cloud Database
+        await saveLabBacktestToDb(config, result);
+        return result;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch real historical candles for backtest, using baseline:", err);
+  }
+
+  const fallbackResult = runClientBacktest(config);
+  await saveLabBacktestToDb(config, fallbackResult);
+  return fallbackResult;
 }

@@ -219,18 +219,18 @@ export function StrategyConfigPanel({
         {/* Initial Capital */}
         <div>
           <label className="block text-xs font-medium text-[#94a3b8] mb-1.5">
-            Initial Capital ($)
+            Initial Capital (₹)
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-2 text-xs text-[#64748b] font-mono">$</span>
+            <span className="absolute left-3 top-2 text-xs text-[#64748b] font-mono">₹</span>
             <input
               type="number"
-              min={100}
-              max={1000000}
-              step={500}
+              min={1000}
+              max={10000000}
+              step={10000}
               value={config.initialCapital}
               onChange={(e) =>
-                onChange({ ...config, initialCapital: Math.max(100, Number(e.target.value)) })
+                onChange({ ...config, initialCapital: Math.max(1000, Number(e.target.value)) })
               }
               className="w-full bg-[#131b2a] border border-[#1e293b] rounded-lg pl-7 pr-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500/50"
             />

@@ -273,8 +273,13 @@ def calc_macd(
     return {"macd": macd_line, "signal": signal_line, "hist": histogram}
 
 
-def run_backtest_simulation(req: BacktestRequest) -> BacktestResponse:
-    candles = generate_candles(req.symbol, req.timeframe, req.date_range_days)
+def run_backtest_simulation(
+    req: BacktestRequest, provided_candles: Optional[List[Dict[str, Any]]] = None
+) -> BacktestResponse:
+    if provided_candles and len(provided_candles) >= 10:
+        candles = provided_candles
+    else:
+        candles = generate_candles(req.symbol, req.timeframe, req.date_range_days)
     closes = [c["close"] for c in candles]
     highs = [c["high"] for c in candles]
     lows = [c["low"] for c in candles]

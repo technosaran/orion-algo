@@ -5,13 +5,13 @@ import { BacktestSummary } from "@/lib/backtest/types";
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
-  Target,
   Percent,
+  Zap,
   ShieldAlert,
   Award,
-  Zap,
+  IndianRupee,
 } from "lucide-react";
+import { formatINR } from "@/lib/formatters";
 
 interface MetricsSummaryCardsProps {
   summary: BacktestSummary;
@@ -23,10 +23,10 @@ export function MetricsSummaryCards({ summary }: MetricsSummaryCardsProps) {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-      {/* 1. Net Profit & ROI */}
-      <div className="bg-[#0b0e14] border border-[#1a2230] rounded-xl p-4 flex flex-col justify-between shadow-sm relative overflow-hidden group hover:border-[#2a384e] transition-all">
+      {/* 1. Net Profit */}
+      <div className="bg-[#0b0e14] border border-[#1a2230] rounded-xl p-4 flex flex-col justify-between shadow-sm hover:border-[#2a384e] transition-all">
         <div className="flex items-center justify-between text-xs text-[#94a3b8]">
-          <span className="font-medium">Net Profit / ROI</span>
+          <span className="font-medium">Net Profit (INR)</span>
           <div
             className={`p-1.5 rounded-md ${
               isNetProfitPositive
@@ -47,8 +47,7 @@ export function MetricsSummaryCards({ summary }: MetricsSummaryCardsProps) {
               isNetProfitPositive ? "text-emerald-400" : "text-rose-400"
             }`}
           >
-            {isNetProfitPositive ? "+" : ""}
-            ${summary.netProfit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatINR(summary.netProfit, { showSign: true, decimals: 2 })}
           </div>
           <div className="flex items-center gap-1.5 mt-1 text-xs">
             <span
@@ -78,23 +77,18 @@ export function MetricsSummaryCards({ summary }: MetricsSummaryCardsProps) {
         <div className="flex items-center justify-between text-xs text-[#94a3b8]">
           <span className="font-medium">Win Rate</span>
           <div className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400">
-            <Target className="w-3.5 h-3.5" />
+            <Percent className="w-3.5 h-3.5" />
           </div>
         </div>
         <div className="mt-2.5">
           <div className="text-xl font-bold font-mono text-white tracking-tight">
             {summary.winRatePct.toFixed(1)}%
           </div>
-          <div className="flex items-center gap-1.5 mt-1 text-xs text-[#64748b]">
-            <span className="text-emerald-400 font-mono font-medium">
-              {summary.winningTrades}W
-            </span>
-            <span>/</span>
-            <span className="text-rose-400 font-mono font-medium">
-              {summary.losingTrades}L
-            </span>
-            <span className="text-[11px] ml-auto font-mono text-[#94a3b8]">
-              {summary.totalTrades} Total
+          <div className="flex items-center justify-between mt-1 text-xs text-[#64748b]">
+            <span>Trades:</span>
+            <span className="font-mono text-[#cbd5e1]">
+              <strong className="text-emerald-400">{summary.winningTrades}W</strong> /{" "}
+              <strong className="text-rose-400">{summary.losingTrades}L</strong> ({summary.totalTrades})
             </span>
           </div>
         </div>
@@ -119,7 +113,7 @@ export function MetricsSummaryCards({ summary }: MetricsSummaryCardsProps) {
                 summary.expectancy >= 0 ? "text-emerald-400" : "text-rose-400"
               }`}
             >
-              ${summary.expectancy.toFixed(2)}
+              {formatINR(summary.expectancy, { showSign: true, decimals: 2 })}
             </span>
           </div>
         </div>
@@ -140,7 +134,7 @@ export function MetricsSummaryCards({ summary }: MetricsSummaryCardsProps) {
           <div className="flex items-center justify-between mt-1 text-xs text-[#64748b]">
             <span>Peak-to-Trough:</span>
             <span className="font-mono text-rose-400/90 font-medium">
-              -${summary.maxDrawdownAmount.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+              -{formatINR(summary.maxDrawdownAmount, { decimals: 0 })}
             </span>
           </div>
         </div>
@@ -172,7 +166,7 @@ export function MetricsSummaryCards({ summary }: MetricsSummaryCardsProps) {
         <div className="flex items-center justify-between text-xs text-[#94a3b8]">
           <span className="font-medium">Avg Win / Loss</span>
           <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400">
-            <DollarSign className="w-3.5 h-3.5" />
+            <IndianRupee className="w-3.5 h-3.5" />
           </div>
         </div>
         <div className="mt-2.5">

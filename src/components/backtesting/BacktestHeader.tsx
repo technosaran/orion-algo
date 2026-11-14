@@ -45,9 +45,6 @@ export function BacktestHeader({
               <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">
                 Backtesting Lab
               </h1>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold">
-                QUANT ENGINE
-              </span>
             </div>
             <p className="text-xs md:text-sm text-[#94a3b8] mt-0.5">
               Simulate quantitative strategies against historical price data with slippage, leverage, and fees

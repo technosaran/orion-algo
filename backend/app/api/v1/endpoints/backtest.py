@@ -1,5 +1,9 @@
+import time
+import random
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException
+from app.db.supabase import get_supabase_client
+from app.services.market_data_service import get_real_historical_candles
 from app.services.backtest_engine import (
     BacktestRequest,
     BacktestResponse,
@@ -65,15 +69,23 @@ STRATEGY_DEFINITIONS = [
 ]
 
 AVAILABLE_SYMBOLS = [
+    {"symbol": "NIFTY50", "name": "Nifty 50 Index", "category": "Indices", "asset_class": "Equities"},
+    {"symbol": "BANKNIFTY", "name": "Bank Nifty Index", "category": "Indices", "asset_class": "Equities"},
+    {"symbol": "SENSEX", "name": "BSE SENSEX", "category": "Indices", "asset_class": "Equities"},
+    {"symbol": "RELIANCE", "name": "Reliance Industries", "category": "Indian Equities", "asset_class": "Equities"},
+    {"symbol": "HDFCBANK", "name": "HDFC Bank Ltd.", "category": "Indian Equities", "asset_class": "Equities"},
+    {"symbol": "TCS", "name": "Tata Consultancy Services", "category": "Indian Equities", "asset_class": "Equities"},
+    {"symbol": "INFY", "name": "Infosys Ltd.", "category": "Indian Equities", "asset_class": "Equities"},
+    {"symbol": "ICICIBANK", "name": "ICICI Bank Ltd.", "category": "Indian Equities", "asset_class": "Equities"},
+    {"symbol": "SBIN", "name": "State Bank of India", "category": "Indian Equities", "asset_class": "Equities"},
     {"symbol": "BTC/USDT", "name": "Bitcoin", "category": "Crypto", "asset_class": "Crypto"},
     {"symbol": "ETH/USDT", "name": "Ethereum", "category": "Crypto", "asset_class": "Crypto"},
     {"symbol": "SOL/USDT", "name": "Solana", "category": "Crypto", "asset_class": "Crypto"},
-    {"symbol": "NIFTY50", "name": "Nifty 50 Index", "category": "Indices", "asset_class": "Equities"},
-    {"symbol": "BANKNIFTY", "name": "Bank Nifty Index", "category": "Indices", "asset_class": "Equities"},
     {"symbol": "AAPL", "name": "Apple Inc.", "category": "US Equities", "asset_class": "Equities"},
     {"symbol": "TSLA", "name": "Tesla Inc.", "category": "US Equities", "asset_class": "Equities"},
     {"symbol": "NVDA", "name": "NVIDIA Corp.", "category": "US Equities", "asset_class": "Equities"},
-    {"symbol": "XAU/USD", "name": "Gold Spot", "category": "Commodities", "asset_class": "Commodities"},
+    {"symbol": "CRUDEOIL", "name": "Crude Oil", "category": "Commodities", "asset_class": "Commodities"},
+    {"symbol": "GOLD", "name": "Gold Spot", "category": "Commodities", "asset_class": "Commodities"},
 ]
 
 
@@ -90,10 +102,33 @@ def get_symbols():
 
 
 @router.post("/run", response_model=BacktestResponse)
-def run_backtest(req: BacktestRequest):
-    """Executes a backtest on the specified asset with custom risk and strategy parameters."""
+async def run_backtest(req: BacktestRequest):
+    """Executes a backtest on real market data and stores execution metrics in Supabase."""
     try:
-        result = run_backtest_simulation(req)
+        # Fetch real historical candles
+        real_candles = await get_real_historical_candles(req.symbol, req.timeframe, 120)
+
+        # Run strategy algorithm on candles
+        result = run_backtest_simulation(req, real_candles if len(real_candles) >= 10 else None)
+
+        # Persist backtest to Supabase
+        try:
+            supabase = get_supabase_client()
+            supabase.table("backtest_results").insert({
+                "id": f"bt-srv-{int(time.time() * 1000)}-{random.randint(100, 999)}",
+                "strategy_id": req.strategy,
+                "strategy_name": req.strategy.upper().replace("_", " "),
+                "symbol": req.symbol,
+                "currency": "INR",
+                "timeframe": req.timeframe,
+                "metrics": result.summary.model_dump(),
+                "equity_curve": [pt.model_dump() for pt in result.equity_curve],
+                "trades": [t.model_dump() for t in result.trades],
+                "monthly_returns": result.monthly_returns,
+            }).execute()
+        except Exception as db_err:
+            print(f"Supabase backtest logging notice: {db_err}")
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Backtesting simulation failed: {str(e)}")

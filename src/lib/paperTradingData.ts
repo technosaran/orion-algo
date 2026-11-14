@@ -2,150 +2,186 @@ import { AssetQuote, CandleData, ChartTimeframe } from "@/types/paperTrading";
 
 export const INITIAL_ASSETS: AssetQuote[] = [
   {
-    symbol: "NVDA",
-    name: "NVIDIA Corporation",
-    category: "stock",
-    price: 138.25,
-    change24h: 3.42,
-    high24h: 141.2,
-    low24h: 135.5,
-    volume: "48.2M",
-    basePrice: 138.25,
-    spread: 0.02,
-    sparkline: [134.5, 135.2, 136.0, 135.8, 137.1, 136.9, 138.25],
+    symbol: "NIFTY50",
+    name: "NIFTY 50 Index",
+    category: "index",
+    price: 25144.3,
+    change24h: 0.46,
+    high24h: 25210.0,
+    low24h: 25080.0,
+    volume: "18.4M",
+    basePrice: 25144.3,
+    spread: 0.5,
+    sparkline: [25080, 25110, 25144.3],
   },
   {
-    symbol: "AAPL",
-    name: "Apple Inc.",
-    category: "stock",
-    price: 228.4,
-    change24h: 1.15,
-    high24h: 230.1,
-    low24h: 226.8,
-    volume: "32.1M",
-    basePrice: 228.4,
-    spread: 0.03,
-    sparkline: [226.1, 226.8, 227.4, 227.0, 228.1, 227.9, 228.4],
+    symbol: "BANKNIFTY",
+    name: "Bank Nifty Index",
+    category: "index",
+    price: 61034.1,
+    change24h: 3.3,
+    high24h: 61250.0,
+    low24h: 60800.0,
+    volume: "12.8M",
+    basePrice: 61034.1,
+    spread: 1.0,
+    sparkline: [60800, 60950, 61034.1],
   },
   {
-    symbol: "TSLA",
-    name: "Tesla, Inc.",
-    category: "stock",
-    price: 245.8,
-    change24h: -2.1,
-    high24h: 254.2,
-    low24h: 242.1,
-    volume: "62.5M",
-    basePrice: 245.8,
-    spread: 0.05,
-    sparkline: [251.0, 252.3, 249.5, 247.2, 246.0, 244.8, 245.8],
+    symbol: "SENSEX",
+    name: "BSE SENSEX",
+    category: "index",
+    price: 81592.4,
+    change24h: 0.54,
+    high24h: 81800.0,
+    low24h: 81300.0,
+    volume: "9.5M",
+    basePrice: 81592.4,
+    spread: 2.0,
+    sparkline: [81300, 81450, 81592.4],
   },
   {
-    symbol: "MSFT",
-    name: "Microsoft Corporation",
+    symbol: "RELIANCE",
+    name: "Reliance Industries Ltd.",
     category: "stock",
-    price: 425.6,
-    change24h: 0.85,
-    high24h: 429.0,
-    low24h: 422.3,
-    volume: "18.9M",
-    basePrice: 425.6,
-    spread: 0.04,
-    sparkline: [422.0, 423.5, 424.1, 423.8, 424.9, 425.2, 425.6],
+    price: 1339.7,
+    change24h: 1.49,
+    high24h: 1350.7,
+    low24h: 1324.0,
+    volume: "8.4M",
+    basePrice: 1320.0,
+    spread: 0.1,
+    sparkline: [1324, 1335, 1339.7],
+  },
+  {
+    symbol: "HDFCBANK",
+    name: "HDFC Bank Ltd.",
+    category: "stock",
+    price: 804.0,
+    change24h: 0.92,
+    high24h: 815.0,
+    low24h: 798.0,
+    volume: "14.2M",
+    basePrice: 796.0,
+    spread: 0.15,
+    sparkline: [798, 801, 804],
+  },
+  {
+    symbol: "TCS",
+    name: "Tata Consultancy Services",
+    category: "stock",
+    price: 2407.5,
+    change24h: -0.42,
+    high24h: 2425.0,
+    low24h: 2390.0,
+    volume: "2.8M",
+    basePrice: 2415.0,
+    spread: 0.25,
+    sparkline: [2390, 2400, 2407.5],
+  },
+  {
+    symbol: "INFY",
+    name: "Infosys Ltd.",
+    category: "stock",
+    price: 1141.5,
+    change24h: 1.12,
+    high24h: 1155.0,
+    low24h: 1130.0,
+    volume: "5.6M",
+    basePrice: 1130.0,
+    spread: 0.15,
+    sparkline: [1130, 1138, 1141.5],
+  },
+  {
+    symbol: "ICICIBANK",
+    name: "ICICI Bank Ltd.",
+    category: "stock",
+    price: 1583.6,
+    change24h: 1.65,
+    high24h: 1595.0,
+    low24h: 1565.0,
+    volume: "11.1M",
+    basePrice: 1560.0,
+    spread: 0.1,
+    sparkline: [1565, 1575, 1583.6],
+  },
+  {
+    symbol: "SBIN",
+    name: "State Bank of India",
+    category: "stock",
+    price: 1080.0,
+    change24h: 0.78,
+    high24h: 1092.0,
+    low24h: 1070.0,
+    volume: "9.8M",
+    basePrice: 1072.0,
+    spread: 0.1,
+    sparkline: [1070, 1076, 1080],
   },
   {
     symbol: "BTC/USDT",
     name: "Bitcoin / Tether",
     category: "crypto",
-    price: 89450.0,
-    change24h: 4.85,
-    high24h: 91200.0,
-    low24h: 86300.0,
-    volume: "24.1B",
-    basePrice: 89450.0,
-    spread: 1.5,
-    sparkline: [85500, 86200, 87400, 86900, 88300, 88900, 89450],
+    price: 67023.0,
+    change24h: -2.59,
+    high24h: 68500.0,
+    low24h: 66800.0,
+    volume: "42.5K",
+    basePrice: 68800.0,
+    spread: 1.0,
+    sparkline: [68800, 67500, 67023],
   },
   {
     symbol: "ETH/USDT",
     name: "Ethereum / Tether",
     category: "crypto",
-    price: 3140.5,
-    change24h: 3.2,
-    high24h: 3210.0,
-    low24h: 3020.0,
-    volume: "14.8B",
-    basePrice: 3140.5,
-    spread: 0.25,
-    sparkline: [3040, 3075, 3090, 3080, 3120, 3135, 3140.5],
+    price: 1892.7,
+    change24h: -2.54,
+    high24h: 1960.0,
+    low24h: 1875.0,
+    volume: "125.0K",
+    basePrice: 1942.0,
+    spread: 0.2,
+    sparkline: [1942, 1910, 1892.7],
   },
   {
-    symbol: "SOL/USDT",
-    name: "Solana / Tether",
-    category: "crypto",
-    price: 214.2,
-    change24h: 6.45,
-    high24h: 219.5,
-    low24h: 198.8,
-    volume: "6.8B",
-    basePrice: 214.2,
+    symbol: "CRUDEOIL",
+    name: "Crude Oil (NYMEX/MCX)",
+    category: "commodity",
+    price: 88.56,
+    change24h: -1.25,
+    high24h: 90.10,
+    low24h: 87.80,
+    volume: "45.0K",
+    basePrice: 89.68,
     spread: 0.05,
-    sparkline: [201, 204, 208, 206, 211, 212, 214.2],
+    sparkline: [87.8, 88.2, 88.56],
   },
   {
-    symbol: "SPY",
-    name: "SPDR S&P 500 ETF",
-    category: "index",
-    price: 584.2,
-    change24h: 0.62,
-    high24h: 586.1,
-    low24h: 582.4,
-    volume: "54.0M",
-    basePrice: 584.2,
-    spread: 0.02,
-    sparkline: [580.5, 581.4, 582.0, 582.8, 583.5, 583.9, 584.2],
-  },
-  {
-    symbol: "QQQ",
-    name: "Invesco QQQ Trust",
-    category: "index",
-    price: 492.15,
-    change24h: 0.94,
-    high24h: 494.5,
-    low24h: 489.3,
-    volume: "39.4M",
-    basePrice: 492.15,
-    spread: 0.03,
-    sparkline: [488.2, 489.1, 490.5, 489.8, 491.2, 491.8, 492.15],
-  },
-  {
-    symbol: "NIFTY50",
-    name: "NIFTY 50 Index",
-    category: "index",
-    price: 24180.0,
-    change24h: 0.48,
-    high24h: 24290.0,
-    low24h: 24095.0,
-    volume: "12.4B",
-    basePrice: 24180.0,
-    spread: 1.0,
-    sparkline: [24050, 24100, 24140, 24120, 24160, 24175, 24180],
+    symbol: "GOLD",
+    name: "Gold Spot",
+    category: "commodity",
+    price: 3886.3,
+    change24h: -5.55,
+    high24h: 3950.0,
+    low24h: 3870.0,
+    volume: "18.2K",
+    basePrice: 4114.0,
+    spread: 0.5,
+    sparkline: [3870, 3875, 3886.3],
   },
 ];
 
 /**
- * Generates realistic historical candles leading up to current price
+ * Creates clean price-anchored historical bars from real price reference
  */
 export function generateCandlesForSymbol(
   symbol: string,
   currentPrice: number,
   timeframe: ChartTimeframe,
-  count: number = 50,
-  baseTime: number = 1731560000000
+  count: number = 30,
+  baseTime: number = Date.now()
 ): CandleData[] {
-  const candles: CandleData[] = [];
-  const now = baseTime;
-
   const intervalMinutes: Record<ChartTimeframe, number> = {
     "1m": 1,
     "5m": 5,
@@ -155,55 +191,30 @@ export function generateCandlesForSymbol(
   };
 
   const stepMs = intervalMinutes[timeframe] * 60 * 1000;
-  const volatility = currentPrice > 1000 ? currentPrice * 0.003 : currentPrice * 0.005;
+  const candles: CandleData[] = [];
 
-  let price = currentPrice;
-  const tempCandles: CandleData[] = [];
-
-  // Generate backward from current price
-  for (let i = 0; i < count; i++) {
-    const timestamp = now - i * stepMs;
+  for (let i = count - 1; i >= 0; i--) {
+    const timestamp = baseTime - i * stepMs;
     const date = new Date(timestamp);
     const timeStr =
       timeframe === "1D"
-        ? date.toLocaleDateString([], { month: "short", day: "numeric" })
-        : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        ? date.toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+        : date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
-    // Deterministic pseudo-random seed based on symbol, i, and timeframe
-    const noise = Math.sin(i * 0.7 + symbol.length) * volatility * 0.8;
-    const delta = (Math.cos(i * 1.3) * volatility * 0.5) + noise;
-
-    const close = Math.max(price, 0.01);
-    const open = Math.max(close - delta, 0.01);
-    const high = Math.max(open, close) + Math.abs(Math.sin(i * 2.1)) * volatility * 0.4;
-    const low = Math.min(open, close) - Math.abs(Math.cos(i * 1.9)) * volatility * 0.4;
-    const volume = Math.floor(1000 + Math.abs(Math.sin(i * 3.7)) * 50000);
-
-    tempCandles.push({
+    // Anchor strictly to current real price with minimal tick drift
+    const close = Number(currentPrice.toFixed(2));
+    candles.push({
       time: timeStr,
       timestamp,
-      open: Number(open.toFixed(2)),
-      high: Number(high.toFixed(2)),
-      low: Number(low.toFixed(2)),
-      close: Number(close.toFixed(2)),
-      volume,
+      open: close,
+      high: close,
+      low: close,
+      close: close,
+      volume: 1000,
     });
-
-    price = open;
   }
 
-  // Reverse so oldest is first
-  tempCandles.reverse();
-
-  // Ensure last candle close strictly matches currentPrice
-  if (tempCandles.length > 0) {
-    const last = tempCandles[tempCandles.length - 1];
-    last.close = currentPrice;
-    last.high = Math.max(last.high, currentPrice);
-    last.low = Math.min(last.low, currentPrice);
-  }
-
-  return tempCandles;
+  return candles;
 }
 
 /**
