@@ -28,6 +28,7 @@ import { PositionSizingSection } from "@/components/strategy-builder/PositionSiz
 import { BacktestResultsSection } from "@/components/strategy-builder/BacktestResultsSection";
 import { CodeExportModal } from "@/components/strategy-builder/CodeExportModal";
 import { TemplatesModal } from "@/components/strategy-builder/TemplatesModal";
+import { STRATEGY_TEMPLATES } from "@/lib/strategy-templates";
 
 function createBlankStrategy(): StrategyConfig {
   return {
@@ -118,9 +119,34 @@ export default function StrategyBuilderPage() {
   const [isCodeExportOpen, setIsCodeExportOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
-  // Load saved strategies from the database on mount
+  // Load template from URL query param if present, or load saved strategies from DB on mount
   useEffect(() => {
     let mounted = true;
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const templateId = params.get("template");
+      if (templateId) {
+        const found = STRATEGY_TEMPLATES.find((t) => t.id === templateId);
+        if (found && mounted) {
+          setStrategy({
+            ...found,
+            id: `strat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          getStrategiesFromDb().then(({ strategies, source }) => {
+            if (mounted) {
+              setDbSource(source);
+              if (strategies.length > 0) setSavedStrategies(strategies);
+            }
+          });
+          return () => {
+            mounted = false;
+          };
+        }
+      }
+    }
+
     getStrategiesFromDb().then(({ strategies, source }) => {
       if (!mounted) return;
       setDbSource(source);

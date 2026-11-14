@@ -99,7 +99,7 @@ export const TradingViewCloudWidget = memo(function TradingViewCloudWidget({
           <span className="text-xs text-[#94a3b8] font-mono">({tvSymbol})</span>
           <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-            NSE/BSE Live Market Feed (INR)
+            {asset.category === "crypto" ? "Binance Public Feed (Live)" : "NSE/BSE Feed (Delayed ~15m)"}
           </span>
         </div>
         <div className="text-[11px] text-[#64748b]">

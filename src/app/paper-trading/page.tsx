@@ -405,6 +405,114 @@ export default function PaperTradingPage() {
     const orderCost = orderData.price * orderData.quantity;
 
     if (orderData.type === "MARKET") {
+      // Check if order is closing or covering an existing position on the opposite side
+      const targetOppositeSide = orderData.side === "BUY" ? "SHORT" : "LONG";
+      const existingOppositePos = state.positions.find(
+        (p) => p.symbol === orderData.symbol && p.side === targetOppositeSide
+      );
+
+      if (existingOppositePos) {
+        // Position Exit / Square-Off execution
+        const isCoveringShort = existingOppositePos.side === "SHORT";
+        const closeQty = Math.min(orderData.quantity, existingOppositePos.quantity);
+        const exitPrice = orderData.price;
+
+        const pnl = isCoveringShort
+          ? (existingOppositePos.entryPrice - exitPrice) * closeQty
+          : (exitPrice - existingOppositePos.entryPrice) * closeQty;
+        const pnlPercent = (pnl / (existingOppositePos.entryPrice * closeQty)) * 100;
+        const returnedMargin = (existingOppositePos.marginUsed / existingOppositePos.quantity) * closeQty;
+        const releasedFunds = returnedMargin + pnl;
+
+        const closedTrade: ClosedTrade = {
+          id: `trd-${Date.now().toString().slice(-6)}`,
+          orderId: `ord-exit-${Date.now().toString().slice(-4)}`,
+          symbol: orderData.symbol,
+          side: existingOppositePos.side,
+          quantity: closeQty,
+          entryPrice: existingOppositePos.entryPrice,
+          exitPrice: Number(exitPrice.toFixed(2)),
+          realizedPnl: Number(pnl.toFixed(2)),
+          realizedPnlPercent: Number(pnlPercent.toFixed(2)),
+          openedAt: existingOppositePos.entryTime,
+          closedAt: Date.now(),
+          closeReason: "MANUAL",
+        };
+
+        const newOrder: PaperOrder = {
+          id: `ord-filled-${Date.now().toString().slice(-6)}`,
+          symbol: orderData.symbol,
+          side: orderData.side,
+          type: orderData.type,
+          price: orderData.price,
+          quantity: closeQty,
+          totalValue: exitPrice * closeQty,
+          status: "FILLED",
+          createdAt: Date.now(),
+          executedAt: Date.now(),
+          isAlgoTrade: orderData.isAlgoTrade,
+          note: `Squared off ${closeQty} of ${existingOppositePos.side} position`,
+        };
+
+        const newCash = state.cashBalance + releasedFunds;
+
+        setState((prev) => {
+          let updatedPositions: PaperPosition[];
+          if (closeQty >= existingOppositePos.quantity) {
+            updatedPositions = prev.positions.filter((p) => p.id !== existingOppositePos.id);
+            deletePositionFromDb(existingOppositePos.id);
+          } else {
+            const remainingQty = existingOppositePos.quantity - closeQty;
+            const remainingMargin =
+              (existingOppositePos.marginUsed / existingOppositePos.quantity) * remainingQty;
+            const updatedPos: PaperPosition = {
+              ...existingOppositePos,
+              quantity: remainingQty,
+              marginUsed: remainingMargin,
+            };
+            updatedPositions = prev.positions.map((p) =>
+              p.id === existingOppositePos.id ? updatedPos : p
+            );
+            savePositionToDb(updatedPos);
+          }
+
+          saveClosedTradeToDb(closedTrade);
+          saveOrderToDb(newOrder);
+          saveAccountToDb(
+            prev.initialBalance,
+            newCash,
+            prev.botActive,
+            prev.botStrategyId,
+            prev.botSpeedSec
+          );
+
+          return {
+            ...prev,
+            cashBalance: newCash,
+            positions: updatedPositions,
+            orders: [newOrder, ...prev.orders],
+            history: [closedTrade, ...prev.history],
+          };
+        });
+
+        addToast(
+          "success",
+          `Position Squared Off (${orderData.symbol})`,
+          `Closed ${closeQty} units at ₹${exitPrice.toFixed(2)}. Realized P&L: ₹${pnl.toFixed(2)} (${pnlPercent >= 0 ? "+" : ""}${pnlPercent.toFixed(2)}%)`
+        );
+        return;
+      }
+
+      // Opening new LONG or SHORT position: Validate Capital Availability
+      if (state.cashBalance < orderCost) {
+        addToast(
+          "error",
+          "Order Rejected: Insufficient Funds",
+          `Required: ₹${orderCost.toLocaleString("en-IN", { minimumFractionDigits: 2 })}, Available: ₹${state.cashBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+        );
+        return;
+      }
+
       const newPosition: PaperPosition = {
         id: `pos-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         symbol: orderData.symbol,
@@ -790,6 +898,9 @@ export default function PaperTradingPage() {
           <OrderExecutionTicket
             asset={currentAsset}
             availableCash={state.cashBalance}
+            hasOpenLong={state.positions.some(
+              (p) => p.symbol === selectedSymbol && p.side === "LONG"
+            )}
             onPlaceOrder={handlePlaceOrderInternal}
           />
         </div>

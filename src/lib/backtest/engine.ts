@@ -592,24 +592,26 @@ export function runClientBacktest(
       }
     }
 
-    // New Entry
-    if (!activePos && signals[i] === 1) {
+    // New Entry (executed on next bar open to eliminate look-ahead bias)
+    if (!activePos && signals[i] === 1 && i < candles.length - 1) {
+      const nextCandle = candles[i + 1];
+      const entryOpen = nextCandle ? nextCandle.open : closeP;
       const alloc = currentCash * 0.95;
       if (alloc > 50) {
-        const effEntry = closeP * (1.0 + slippageRate);
+        const effEntry = entryOpen * (1.0 + slippageRate);
         const entryFee = alloc * feeRate;
         const invested = alloc - entryFee;
         const size = (invested * leverage) / effEntry;
         currentCash -= alloc;
 
         activePos = {
-          entryTime: timeStr,
+          entryTime: nextCandle ? nextCandle.timestamp : timeStr,
           entryPrice: effEntry,
           invested,
           entryFee,
           size,
-          entryBar: i,
-          highestPrice: closeP,
+          entryBar: i + 1,
+          highestPrice: effEntry,
         };
       }
     }

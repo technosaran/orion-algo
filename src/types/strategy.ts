@@ -143,6 +143,7 @@ export interface TradeLog {
   exitReason: "Take Profit" | "Stop Loss" | "Trailing Stop" | "Signal Exit" | "Time Exit" | "End of Period";
   maxFavorableExcursionPct: number;
   maxAdverseExcursionPct: number;
+  durationBars?: number;
 }
 
 export interface EquityDataPoint {

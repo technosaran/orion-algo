@@ -7,6 +7,7 @@ import {
   ConditionGroup,
   IndicatorConfig,
 } from "@/types/strategy";
+import { getInstrumentLotSize } from "@/lib/formatters";
 
 interface OHLCV {
   time: string;
@@ -292,6 +293,111 @@ function calculateVWAP(bars: OHLCV[]): number[] {
   return vwap;
 }
 
+function calculateMACD(
+  closes: number[],
+  fastPeriod = 12,
+  slowPeriod = 26,
+  signalPeriod = 9
+): { macd: (number | null)[]; signal: (number | null)[]; hist: (number | null)[] } {
+  const fastEMA = calculateEMA(closes, fastPeriod);
+  const slowEMA = calculateEMA(closes, slowPeriod);
+  const macdLine: (number | null)[] = [];
+
+  for (let i = 0; i < closes.length; i++) {
+    const f = fastEMA[i];
+    const s = slowEMA[i];
+    if (f !== null && s !== null) {
+      macdLine.push(f - s);
+    } else {
+      macdLine.push(null);
+    }
+  }
+
+  const validMacd: number[] = [];
+  const indexMap: number[] = [];
+  for (let i = 0; i < macdLine.length; i++) {
+    if (macdLine[i] !== null) {
+      validMacd.push(macdLine[i]!);
+      indexMap.push(i);
+    }
+  }
+
+  const signalValid = calculateEMA(validMacd, signalPeriod);
+  const signalLine: (number | null)[] = new Array(closes.length).fill(null);
+  const histLine: (number | null)[] = new Array(closes.length).fill(null);
+
+  for (let k = 0; k < signalValid.length; k++) {
+    const idx = indexMap[k];
+    const sigVal = signalValid[k];
+    signalLine[idx] = sigVal;
+    if (sigVal !== null && macdLine[idx] !== null) {
+      histLine[idx] = macdLine[idx]! - sigVal;
+    }
+  }
+
+  return { macd: macdLine, signal: signalLine, hist: histLine };
+}
+
+function calculateStochastic(
+  bars: OHLCV[],
+  periodK = 14,
+  smoothK = 3,
+  periodD = 3
+): { k: (number | null)[]; d: (number | null)[] } {
+  const rawK: (number | null)[] = [];
+  for (let i = 0; i < bars.length; i++) {
+    if (i < periodK - 1) {
+      rawK.push(null);
+      continue;
+    }
+    let highestHigh = -Infinity;
+    let lowestLow = Infinity;
+    for (let j = 0; j < periodK; j++) {
+      const b = bars[i - j];
+      if (b.high > highestHigh) highestHigh = b.high;
+      if (b.low < lowestLow) lowestLow = b.low;
+    }
+    const currentClose = bars[i].close;
+    const range = highestHigh - lowestLow;
+    if (range === 0) {
+      rawK.push(50);
+    } else {
+      rawK.push(((currentClose - lowestLow) / range) * 100);
+    }
+  }
+
+  const validK: number[] = [];
+  const validKIdx: number[] = [];
+  for (let i = 0; i < rawK.length; i++) {
+    if (rawK[i] !== null) {
+      validK.push(rawK[i]!);
+      validKIdx.push(i);
+    }
+  }
+
+  const smoothedKValues = calculateSMA(validK, smoothK);
+  const kLine: (number | null)[] = new Array(bars.length).fill(null);
+  for (let m = 0; m < smoothedKValues.length; m++) {
+    kLine[validKIdx[m]] = smoothedKValues[m];
+  }
+
+  const validSmoothedK: number[] = [];
+  const validSmoothedKIdx: number[] = [];
+  for (let i = 0; i < kLine.length; i++) {
+    if (kLine[i] !== null) {
+      validSmoothedK.push(kLine[i]!);
+      validSmoothedKIdx.push(i);
+    }
+  }
+  const dValues = calculateSMA(validSmoothedK, periodD);
+  const dLine: (number | null)[] = new Array(bars.length).fill(null);
+  for (let m = 0; m < dValues.length; m++) {
+    dLine[validSmoothedKIdx[m]] = dValues[m];
+  }
+
+  return { k: kLine, d: dLine };
+}
+
 // Indicator store
 class IndicatorStore {
   bars: OHLCV[];
@@ -383,6 +489,32 @@ class IndicatorStore {
         this.cache.set(key, calculateVWAP(this.bars));
         break;
       }
+      case "MACD": {
+        const fast = Number(p.fast) || 12;
+        const slow = Number(p.slow) || 26;
+        const signal = Number(p.signal) || 9;
+        const macdRes = calculateMACD(this.closes, fast, slow, signal);
+        if (indicator.subField === "signal") {
+          this.cache.set(key, macdRes.signal);
+        } else if (indicator.subField === "hist") {
+          this.cache.set(key, macdRes.hist);
+        } else {
+          this.cache.set(key, macdRes.macd);
+        }
+        break;
+      }
+      case "STOCHASTIC": {
+        const periodK = Number(p.periodK) || 14;
+        const smoothK = Number(p.smoothK) || 3;
+        const periodD = Number(p.periodD) || 3;
+        const stochRes = calculateStochastic(this.bars, periodK, smoothK, periodD);
+        if (indicator.subField === "d") {
+          this.cache.set(key, stochRes.d);
+        } else {
+          this.cache.set(key, stochRes.k);
+        }
+        break;
+      }
       default:
         this.cache.set(key, this.closes);
     }
@@ -449,14 +581,7 @@ function evaluateGroup(
 // Indian lot size resolver
 function resolveLotSize(symbol: string, configuredLotSize?: number): number {
   if (configuredLotSize && configuredLotSize > 0) return configuredLotSize;
-  const s = symbol.toUpperCase();
-  if (s.includes("BANKNIFTY")) return 15;
-  if (s.includes("NIFTY 50") || s.includes("NIFTY50") || s.includes("FINNIFTY")) return 25;
-  if (s.includes("MIDCPNIFTY")) return 50;
-  if (s.includes("SENSEX")) return 10;
-  if (s.includes("CRUDEOIL")) return 100;
-  if (s.includes("GOLD")) return 10;
-  return 1; // Equities
+  return getInstrumentLotSize(symbol);
 }
 
 // Main backtest simulation engine runner
@@ -647,6 +772,7 @@ export function runBacktest(
           exitReason,
           maxFavorableExcursionPct: Math.max(0, mfePct),
           maxAdverseExcursionPct: Math.max(0, maePct),
+          durationBars: Math.max(1, i - activePosition.entryBar),
         });
 
         activePosition = null;
@@ -664,9 +790,11 @@ export function runBacktest(
         const direction: "LONG" | "SHORT" =
           strategy.direction === "short" ? "SHORT" : "LONG";
 
-        // Entry with slippage
-        const slippage = currentPrice * ((strategy.positionSizing.slippagePct || 0.02) / 100);
-        const entryPrice = direction === "LONG" ? currentPrice + slippage : currentPrice - slippage;
+        // Execute on next bar open to strictly eliminate look-ahead bias
+        const nextBar = bars[i + 1];
+        const execPrice = nextBar ? nextBar.open : currentPrice;
+        const slippage = execPrice * ((strategy.positionSizing.slippagePct || 0.02) / 100);
+        const entryPrice = direction === "LONG" ? execPrice + slippage : execPrice - slippage;
 
         // Determine Stop Loss price
         let slDistance = entryPrice * 0.01; // default 1%
@@ -737,8 +865,8 @@ export function runBacktest(
         activePosition = {
           tradeNumber: tradeCounter,
           direction,
-          entryBar: i,
-          entryTime: currentBar.time,
+          entryBar: i + 1,
+          entryTime: nextBar ? nextBar.time : currentBar.time,
           entryPrice,
           quantity,
           lotCount,
@@ -810,7 +938,11 @@ export function runBacktest(
     losingTrades > 0 ? Math.round((-grossLoss / losingTrades) * 100) / 100 : 0;
 
   const riskRewardRatio =
-    avgLossPnl !== 0 ? Math.abs(Math.round((avgWinPnl / avgLossPnl) * 100) / 100) : 1.8;
+    avgLossPnl !== 0
+      ? Math.abs(Math.round((avgWinPnl / avgLossPnl) * 100) / 100)
+      : avgWinPnl > 0
+      ? 9.99
+      : 0.0;
 
   // Annualized Sharpe and Sortino ratios estimates
   const returns = equityCurve.slice(1).map((e, idx) => {
@@ -830,14 +962,23 @@ export function runBacktest(
   const downsideStdDev = Math.sqrt(downsideVariance);
 
   const sharpeRatio =
-    stdDev > 0 ? Math.round(((meanReturn / stdDev) * Math.sqrt(252)) * 100) / 100 : 1.45;
+    stdDev > 0 ? Math.round(((meanReturn / stdDev) * Math.sqrt(252)) * 100) / 100 : 0.0;
   const sortinoRatio =
     downsideStdDev > 0
       ? Math.round(((meanReturn / downsideStdDev) * Math.sqrt(252)) * 100) / 100
-      : 1.95;
+      : grossProfit > 0 && totalTrades > 0
+      ? 9.99
+      : 0.0;
 
   const bestTradePct = trades.length > 0 ? Math.max(...trades.map((t) => t.pnlPct)) : 0;
   const worstTradePct = trades.length > 0 ? Math.min(...trades.map((t) => t.pnlPct)) : 0;
+
+  const avgHoldingBars =
+    trades.length > 0
+      ? Math.round(
+          trades.reduce((acc, t) => acc + (t.durationBars || 1), 0) / trades.length
+        )
+      : 0;
 
   return {
     metrics: {
@@ -857,7 +998,7 @@ export function runBacktest(
       avgWinPnl,
       avgLossPnl,
       riskRewardRatio,
-      avgHoldingBars: 14,
+      avgHoldingBars,
       bestTradePct,
       worstTradePct,
       totalBrokeragePaid: Math.round(totalBrokeragePaid),

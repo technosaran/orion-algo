@@ -27,6 +27,7 @@ import {
 interface OrderExecutionTicketProps {
   asset: AssetQuote;
   availableCash: number;
+  hasOpenLong?: boolean;
   onPlaceOrder: (order: {
     symbol: string;
     side: OrderSide;
@@ -42,6 +43,7 @@ interface OrderExecutionTicketProps {
 export function OrderExecutionTicket({
   asset,
   availableCash,
+  hasOpenLong = false,
   onPlaceOrder,
 }: OrderExecutionTicketProps) {
   const [side, setSide] = useState<OrderSide>("BUY");
@@ -53,26 +55,21 @@ export function OrderExecutionTicket({
   const [useLots, setUseLots] = useState<boolean>(isFO);
   const [lots, setLots] = useState<number>(1);
   const [quantity, setQuantity] = useState<number>(isFO ? lotSize : 1);
-  const [limitPrice, setLimitPrice] = useState<number>(asset.price);
+  const [customLimitPrice, setCustomLimitPrice] = useState<number | null>(null);
   const [takeProfit, setTakeProfit] = useState<string>("");
   const [stopLoss, setStopLoss] = useState<string>("");
 
-  // When asset changes, re-sync lots and quantity
+  const limitPrice = customLimitPrice !== null ? customLimitPrice : asset.price;
+
+  // When asset symbol changes, re-sync lots and quantity
   useEffect(() => {
     const newLotSize = asset.lotSize || getInstrumentLotSize(asset.symbol);
     const newIsFO = newLotSize > 1;
     setUseLots(newIsFO);
     setLots(1);
     setQuantity(newIsFO ? newLotSize : 1);
-    setLimitPrice(asset.price);
-  }, [asset.symbol, asset.price]);
-
-  // Sync limit price when market
-  useEffect(() => {
-    if (orderType === "MARKET") {
-      setLimitPrice(asset.price);
-    }
-  }, [asset.price, orderType]);
+    setCustomLimitPrice(null);
+  }, [asset.symbol, asset.lotSize]);
 
   // Update quantity whenever lots change
   const handleSetLots = (newLots: number) => {
@@ -81,11 +78,11 @@ export function OrderExecutionTicket({
     setQuantity(validLots * lotSize);
   };
 
-  const effectivePrice = orderType === "MARKET" ? asset.price : limitPrice || asset.price;
+  const effectivePrice = orderType === "MARKET" ? asset.price : limitPrice;
   const orderValue = effectivePrice * quantity;
   const slippage = orderType === "MARKET" ? orderValue * 0.0002 : 0;
   const totalCost = orderValue + slippage;
-  const hasSufficientFunds = side === "SELL" || availableCash >= totalCost;
+  const hasSufficientFunds = (side === "SELL" && hasOpenLong) || availableCash >= totalCost;
   const isValidQuantity = quantity > 0;
   const tickSize = asset.tickSize || getInstrumentTickSize(asset.symbol);
 
@@ -203,7 +200,7 @@ export function OrderExecutionTicket({
               <span>{orderType === "LIMIT" ? "Limit Price (₹)" : "Stop Trigger Price (₹)"}</span>
               <button
                 type="button"
-                onClick={() => setLimitPrice(asset.price)}
+                onClick={() => setCustomLimitPrice(asset.price)}
                 className="text-cyan-400 hover:underline"
               >
                 Use Current (₹{asset.price.toFixed(2)})
@@ -217,7 +214,7 @@ export function OrderExecutionTicket({
                 type="number"
                 step="0.05"
                 value={limitPrice}
-                onChange={(e) => setLimitPrice(parseFloat(e.target.value) || 0)}
+                onChange={(e) => setCustomLimitPrice(parseFloat(e.target.value) || 0)}
                 className="w-full pl-7 pr-3 py-2 bg-[#121824] border border-[#1e293b] rounded-lg text-white font-mono focus:outline-none focus:border-emerald-500/50"
               />
             </div>
@@ -410,11 +407,18 @@ export function OrderExecutionTicket({
                 Execute Buy {useLots && isFO ? `(${lots} Lot${lots > 1 ? "s" : ""})` : `(${quantity} Qty)`} • {formatINR(totalCost, { decimals: 0 })}
               </span>
             </>
+          ) : hasOpenLong ? (
+            <>
+              <TrendingDown className="w-3.5 h-3.5" />
+              <span>
+                Square Off Long {useLots && isFO ? `(${lots} Lot${lots > 1 ? "s" : ""})` : `(${quantity} Qty)`} • {formatINR(totalCost, { decimals: 0 })}
+              </span>
+            </>
           ) : (
             <>
               <TrendingDown className="w-3.5 h-3.5" />
               <span>
-                Execute Sell {useLots && isFO ? `(${lots} Lot${lots > 1 ? "s" : ""})` : `(${quantity} Qty)`} • {formatINR(totalCost, { decimals: 0 })}
+                Execute Sell Short {useLots && isFO ? `(${lots} Lot${lots > 1 ? "s" : ""})` : `(${quantity} Qty)`} • {formatINR(totalCost, { decimals: 0 })}
               </span>
             </>
           )}

@@ -60,9 +60,9 @@ export function NSEMarketStatusBanner() {
       } else if (timeInMins >= 555 && timeInMins < 930) {
         // 09:15 - 15:30
         setSessionPhase({
-          label: "NSE LIVE Market",
+          label: "NSE Market Session",
           status: "live",
-          desc: "Continuous Cash & F&O (09:15 - 15:30)",
+          desc: "Continuous Cash & F&O (09:15 - 15:30 IST) • Delayed Feed (~15m)",
         });
       } else if (timeInMins >= 930 && timeInMins < 940) {
         // 15:30 - 15:40

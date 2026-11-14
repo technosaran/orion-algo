@@ -129,7 +129,7 @@ export default function DashboardPage() {
           {STRATEGY_TEMPLATES.map((tmpl) => (
             <Link
               key={tmpl.id}
-              href="/strategy-builder"
+              href={`/strategy-builder?template=${tmpl.id}`}
               className="bg-[#0b0e14] border border-[#1a2230] hover:border-emerald-500/40 rounded-xl p-4 flex flex-col justify-between space-y-3 transition-all hover:shadow-lg hover:shadow-emerald-500/5 group"
             >
               <div className="space-y-2">

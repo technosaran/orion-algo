@@ -35,24 +35,39 @@ function formatConditionPython(cond: RuleCondition): string {
 }
 
 export function generatePythonCode(strategy: StrategyConfig): string {
-  const entryRules = strategy.entryGroups
-    .map((g) => {
-      const op = g.logic === "AND" ? " and " : " or ";
-      const conds = g.conditions.map(formatConditionPython).join(op);
-      return `        # Condition Block (${g.logic})\n        entry_signal = ${conds || "True"}`;
-    })
-    .join("\n\n");
+  let entryRules = "        entry_signal = False";
+  if (strategy.entryGroups.length === 1) {
+    const g = strategy.entryGroups[0];
+    const op = g.logic === "AND" ? " and " : " or ";
+    const conds = g.conditions.map(formatConditionPython).join(op);
+    entryRules = `        # Condition Block (${g.logic})\n        entry_signal = ${conds ? `(${conds})` : "True"}`;
+  } else if (strategy.entryGroups.length > 1) {
+    const blocks = strategy.entryGroups
+      .map((g, idx) => {
+        const op = g.logic === "AND" ? " and " : " or ";
+        const conds = g.conditions.map(formatConditionPython).join(op);
+        return `            (${conds || "True"}),  # Block ${idx + 1} (${g.logic})`;
+      })
+      .join("\n");
+    entryRules = `        # Multi-Block Condition Evaluation\n        entry_blocks = [\n${blocks}\n        ]\n        entry_signal = all(entry_blocks)`;
+  }
 
-  const exitRules =
-    strategy.customExitEnabled && strategy.exitGroups.length > 0
-      ? strategy.exitGroups
-          .map((g) => {
-            const op = g.logic === "AND" ? " and " : " or ";
-            const conds = g.conditions.map(formatConditionPython).join(op);
-            return `        exit_signal = ${conds || "False"}`;
-          })
-          .join("\n\n")
-      : "        exit_signal = False";
+  let exitRules = "        exit_signal = False";
+  if (strategy.customExitEnabled && strategy.exitGroups.length === 1) {
+    const g = strategy.exitGroups[0];
+    const op = g.logic === "AND" ? " and " : " or ";
+    const conds = g.conditions.map(formatConditionPython).join(op);
+    exitRules = `        # Custom Exit Block (${g.logic})\n        exit_signal = ${conds ? `(${conds})` : "False"}`;
+  } else if (strategy.customExitEnabled && strategy.exitGroups.length > 1) {
+    const blocks = strategy.exitGroups
+      .map((g, idx) => {
+        const op = g.logic === "AND" ? " and " : " or ";
+        const conds = g.conditions.map(formatConditionPython).join(op);
+        return `            (${conds || "False"}),  # Exit Block ${idx + 1} (${g.logic})`;
+      })
+      .join("\n");
+    exitRules = `        # Multi-Block Exit Evaluation\n        exit_blocks = [\n${blocks}\n        ]\n        exit_signal = any(exit_blocks)`;
+  }
 
   return `"""
 Orion Algo - Indian Markets Quantitative Trading Engine

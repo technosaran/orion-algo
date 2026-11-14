@@ -654,7 +654,7 @@ export function TradingViewOpenSourceChart({
             )}
             <span className="flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              NSE Live Feed
+              {asset.category === "crypto" ? "Binance Live Feed" : "Market Feed (Delayed ~15m)"}
             </span>
           </div>
 
