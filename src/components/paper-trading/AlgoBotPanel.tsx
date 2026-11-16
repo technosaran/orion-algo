@@ -7,10 +7,9 @@ import {
   Pause,
   Trash2,
   Terminal,
-  Activity,
+  ShieldCheck,
+  Globe,
   Sliders,
-  CheckCircle2,
-  Sparkles,
 } from "lucide-react";
 import { BotLog, AssetQuote } from "@/types/paperTrading";
 
@@ -24,23 +23,30 @@ interface AlgoBotPanelProps {
   logs: BotLog[];
   onClearLogs: () => void;
   currentAsset: AssetQuote;
+  scanAllAssets?: boolean;
+  onToggleScanAll?: (val: boolean) => void;
 }
 
 const STRATEGIES = [
   {
     id: "rsi_mean_reversion",
     name: "RSI Mean Reversion",
-    desc: "Buys when RSI < 30 (oversold), closes when RSI > 65.",
+    desc: "Buys when RSI < 30 (oversold) and exits when RSI > 65.",
   },
   {
     id: "ema_crossover",
-    name: "Dual EMA Momentum Cross",
-    desc: "Enters on EMA(20) crossing EMA(50) with trend confirmation.",
+    name: "Dual EMA Crossover",
+    desc: "Enters when EMA(20) crosses above EMA(50).",
   },
   {
     id: "bb_volatility_scalper",
-    name: "Bollinger Volatility Scalp",
-    desc: "Buys 2.0 std lower band bounces, targets SMA(20) mean.",
+    name: "Bollinger Bands Reversion",
+    desc: "Buys at lower Bollinger Band and exits at middle moving average.",
+  },
+  {
+    id: "macd_trend",
+    name: "MACD Momentum Trend",
+    desc: "Buys when MACD line crosses above signal line with positive momentum.",
   },
 ];
 
@@ -54,6 +60,8 @@ export function AlgoBotPanel({
   logs,
   onClearLogs,
   currentAsset,
+  scanAllAssets = false,
+  onToggleScanAll,
 }: AlgoBotPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -74,7 +82,7 @@ export function AlgoBotPanel({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-white tracking-wide">
-                Orion Algo Bot
+                Automated Algo Bot
               </span>
               <span
                 className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded border ${
@@ -85,14 +93,14 @@ export function AlgoBotPanel({
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    botActive ? "bg-cyan-400 animate-ping" : "bg-[#64748b]"
+                    botActive ? "bg-cyan-400 animate-pulse" : "bg-[#64748b]"
                   }`}
                 />
                 {botActive ? "RUNNING" : "STANDBY"}
               </span>
             </div>
             <p className="text-[10px] text-[#64748b]">
-              Target: <strong className="text-white">{currentAsset.symbol}</strong>
+              Target: <strong className="text-white">{scanAllAssets ? "All Watchlist Assets" : currentAsset.symbol}</strong>
             </p>
           </div>
         </div>
@@ -109,27 +117,54 @@ export function AlgoBotPanel({
           {botActive ? (
             <>
               <Pause className="w-3.5 h-3.5" />
-              <span>PAUSE BOT</span>
+              <span>Pause Bot</span>
             </>
           ) : (
             <>
               <Play className="w-3.5 h-3.5" />
-              <span>START BOT</span>
+              <span>Start Bot</span>
             </>
           )}
         </button>
       </div>
 
-      {/* Controls: Strategy & Speed */}
+      {/* Execution Architecture Badge */}
+      <div className="px-3.5 py-1.5 bg-[#080d16] border-b border-[#1a2333] flex items-center justify-between text-[10px]">
+        <div className="flex items-center gap-1.5 text-emerald-400">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Execution: Paper Simulation (Zero Risk)</span>
+        </div>
+        <span className="text-[#64748b] font-mono">Broker Ready Architecture</span>
+      </div>
+
+      {/* Controls: Strategy & Scanning Target */}
       <div className="p-3 bg-[#080b12] border-b border-[#1a2333] space-y-2.5 text-xs">
         <div className="flex items-center justify-between">
           <label className="text-[11px] font-semibold text-[#64748b]">
             Active Strategy
           </label>
-          <div className="flex items-center gap-1 text-[10px] text-[#64748b]">
-            <Sparkles className="w-3 h-3 text-cyan-400" />
-            <span>Auto-signal</span>
-          </div>
+          {onToggleScanAll && (
+            <div className="flex items-center gap-1 bg-[#121824] p-0.5 rounded border border-[#1e293b]">
+              <button
+                type="button"
+                onClick={() => onToggleScanAll(false)}
+                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+                  !scanAllAssets ? "bg-cyan-500/20 text-cyan-300" : "text-[#64748b]"
+                }`}
+              >
+                {currentAsset.symbol}
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleScanAll(true)}
+                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+                  scanAllAssets ? "bg-cyan-500/20 text-cyan-300" : "text-[#64748b]"
+                }`}
+              >
+                All Assets
+              </button>
+            </div>
+          )}
         </div>
 
         <select
@@ -143,22 +178,22 @@ export function AlgoBotPanel({
             </option>
           ))}
         </select>
-        <p className="text-[10px] text-[#64748b] italic">
+        <p className="text-[10px] text-[#64748b]">
           {STRATEGIES.find((s) => s.id === strategyId)?.desc}
         </p>
 
         {/* Speed / Frequency selector */}
         <div className="flex items-center justify-between pt-1">
-          <span className="text-[11px] text-[#64748b]">Scan Cadence</span>
+          <span className="text-[11px] text-[#64748b]">Cycle Frequency</span>
           <div className="flex items-center gap-1">
-            {[2, 5, 10].map((sec) => (
+            {[1, 3, 5, 10].map((sec) => (
               <button
                 key={sec}
                 onClick={() => onChangeSpeed(sec)}
                 className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-colors ${
                   speedSec === sec
-                    ? "bg-[#1f2b42] text-cyan-300 border-cyan-500/40 font-bold"
-                    : "bg-[#121824] text-[#64748b] border-[#1e293b] hover:text-[#94a3b8]"
+                    ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold"
+                    : "bg-[#121824] border-[#1e293b] text-[#64748b] hover:text-[#cbd5e1]"
                 }`}
               >
                 {sec}s
@@ -168,57 +203,71 @@ export function AlgoBotPanel({
         </div>
       </div>
 
-      {/* Live Terminal / Strategy Logs */}
-      <div className="flex flex-col flex-1 min-h-[160px] max-h-[220px] bg-[#06080e] overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#121824] text-[10px] text-[#64748b]">
-          <span className="flex items-center gap-1 font-mono">
+      {/* Bot Logs Console */}
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-[#0e1422] border-b border-[#1a2333] text-[10px] text-[#64748b]">
+          <div className="flex items-center gap-1.5">
             <Terminal className="w-3 h-3 text-cyan-400" />
-            BOT EXECUTION AUDIT LOG
-          </span>
-          {logs.length > 0 && (
+            <span className="font-mono font-semibold uppercase">Execution Signals & Orders</span>
+            <span>({logs.length})</span>
+          </div>
+          <div className="flex items-center gap-2">
             <button
-              onClick={onClearLogs}
-              className="hover:text-white transition-colors"
-              title="Clear terminal logs"
+              onClick={() => setCollapsed(!collapsed)}
+              className="text-[#64748b] hover:text-white"
             >
-              <Trash2 className="w-3 h-3 text-[#64748b] hover:text-rose-400" />
+              {collapsed ? "Expand" : "Collapse"}
             </button>
-          )}
+            {logs.length > 0 && (
+              <button
+                onClick={onClearLogs}
+                className="hover:text-rose-400 transition-colors"
+                title="Clear Logs"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5 font-mono text-[11px]">
-          {logs.length === 0 ? (
-            <div className="text-center py-6 text-[10px] text-[#475569]">
-              Engine idle. Start bot or wait for next technical trigger.
-            </div>
-          ) : (
-            logs.map((log) => {
-              const badgeColor =
-                log.type === "SIGNAL"
-                  ? "text-cyan-400 bg-cyan-500/10 border-cyan-500/20"
-                  : log.type === "ORDER"
-                  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-                  : log.type === "RISK"
-                  ? "text-rose-400 bg-rose-500/10 border-rose-500/20"
-                  : "text-[#94a3b8] bg-[#121824] border-[#1e293b]";
-
-              return (
+        {!collapsed && (
+          <div className="p-2.5 max-h-44 overflow-y-auto space-y-1.5 font-mono text-[10px] bg-[#06080e]">
+            {logs.length === 0 ? (
+              <div className="py-4 text-center text-[#475569]">
+                Bot standby. Press &quot;Start Bot&quot; to begin automated signals on live market data.
+              </div>
+            ) : (
+              logs.slice(0, 30).map((log) => (
                 <div
                   key={log.id}
-                  className="flex items-start gap-2 text-[10.5px] leading-relaxed border-b border-[#0f1420]/50 pb-1"
+                  className="flex items-start gap-1.5 leading-relaxed text-[#94a3b8]"
                 >
-                  <span className="text-[#475569] shrink-0">{log.timestamp}</span>
+                  <span className="text-[#475569] shrink-0 font-mono">
+                    {new Date(log.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}
+                  </span>
                   <span
-                    className={`text-[9px] uppercase px-1 py-0.2 rounded border font-semibold shrink-0 ${badgeColor}`}
+                    className={`font-bold px-1 rounded text-[9px] ${
+                      log.type === "ORDER"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : log.type === "SIGNAL"
+                        ? "bg-cyan-500/20 text-cyan-400"
+                        : log.type === "RISK"
+                        ? "bg-rose-500/20 text-rose-400"
+                        : "bg-[#1e293b] text-[#94a3b8]"
+                    }`}
                   >
                     {log.type}
                   </span>
-                  <span className="text-[#cbd5e1] break-words">{log.message}</span>
+                  <span className="break-all">{log.message}</span>
                 </div>
-              );
-            })
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -134,7 +134,7 @@ export function OrderExecutionTicket({
       <div className="flex items-center justify-between pb-3 border-b border-[#1a2333] mb-3">
         <div>
           <span className="text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
-            NSE Order Desk
+            Order Ticket
           </span>
           <span className="text-[10px] text-[#64748b]">
             Available: <strong className="text-white">{formatINR(availableCash, { decimals: 2 })}</strong>
@@ -361,21 +361,21 @@ export function OrderExecutionTicket({
         {/* Order Breakdown / Cost Summary */}
         <div className="p-2.5 rounded-lg bg-[#080b12] border border-[#1a2333] space-y-1.5 text-[11px]">
           <div className="flex justify-between text-[#64748b]">
-            <span>Contract Notional</span>
+            <span>Order Value</span>
             <span className="font-mono text-white font-semibold">
-              {formatLakhs(orderValue)} ({formatINR(orderValue, { decimals: 2 })})
+              {formatINR(orderValue, { decimals: 2 })}
             </span>
           </div>
           <div className="flex justify-between text-[#64748b]">
-            <span>Brokerage & STT (Paper)</span>
-            <span className="font-mono text-emerald-400">₹0.00 ZERO</span>
+            <span>Brokerage & Taxes</span>
+            <span className="font-mono text-emerald-400">₹0.00 (Paper)</span>
           </div>
           <div className="flex justify-between text-[#64748b]">
-            <span>Est. Slippage (0.02%)</span>
+            <span>Est. Slippage</span>
             <span className="font-mono text-[#94a3b8]">₹{slippage.toFixed(2)}</span>
           </div>
           <div className="pt-1 border-t border-[#1a2333] flex justify-between font-semibold">
-            <span className="text-[#94a3b8]">Required Capital</span>
+            <span className="text-[#94a3b8]">Total Amount</span>
             <span className="font-mono text-white text-xs">{formatINR(totalCost, { decimals: 2 })}</span>
           </div>
         </div>
@@ -404,21 +404,21 @@ export function OrderExecutionTicket({
             <>
               <TrendingUp className="w-3.5 h-3.5" />
               <span>
-                Execute Buy {useLots && isFO ? `(${lots} Lot${lots > 1 ? "s" : ""})` : `(${quantity} Qty)`} • {formatINR(totalCost, { decimals: 0 })}
+                Buy {quantity} {asset.symbol} • {formatINR(totalCost, { decimals: 0 })}
               </span>
             </>
           ) : hasOpenLong ? (
             <>
               <TrendingDown className="w-3.5 h-3.5" />
               <span>
-                Square Off Long {useLots && isFO ? `(${lots} Lot${lots > 1 ? "s" : ""})` : `(${quantity} Qty)`} • {formatINR(totalCost, { decimals: 0 })}
+                Close Long {quantity} {asset.symbol} • {formatINR(totalCost, { decimals: 0 })}
               </span>
             </>
           ) : (
             <>
               <TrendingDown className="w-3.5 h-3.5" />
               <span>
-                Execute Sell Short {useLots && isFO ? `(${lots} Lot${lots > 1 ? "s" : ""})` : `(${quantity} Qty)`} • {formatINR(totalCost, { decimals: 0 })}
+                Sell Short {quantity} {asset.symbol} • {formatINR(totalCost, { decimals: 0 })}
               </span>
             </>
           )}

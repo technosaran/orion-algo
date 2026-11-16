@@ -6,7 +6,6 @@ import {
   AVAILABLE_SYMBOLS,
   STRATEGY_PRESETS,
   PresetStrategy,
-  runServerOrClientBacktest,
   runClientBacktest,
 } from "@/lib/backtest/engine";
 import { BacktestConfig, BacktestResult } from "@/lib/backtest/types";
@@ -38,27 +37,21 @@ export default function BacktestingPage() {
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
-  const [preferServer, setPreferServer] = useState(false);
 
   // Run backtest function
   const executeSimulation = useCallback(
-    async (currentConfig: BacktestConfig) => {
+    (currentConfig: BacktestConfig) => {
       setIsRunning(true);
       try {
-        const simResult = await runServerOrClientBacktest(
-          currentConfig,
-          preferServer
-        );
+        const simResult = runClientBacktest(currentConfig);
         setResult(simResult);
       } catch (err) {
-        console.error("Backtest failed, falling back to client engine:", err);
-        const fallback = runClientBacktest(currentConfig);
-        setResult(fallback);
+        console.error("Backtest failed:", err);
       } finally {
         setIsRunning(false);
       }
     },
-    [preferServer]
+    []
   );
 
   // Run initial simulation on mount
@@ -93,9 +86,6 @@ export default function BacktestingPage() {
         isRunning={isRunning}
         activePresetId={activePresetId}
         onSelectPreset={handleSelectPreset}
-        preferServer={preferServer}
-        onToggleEngine={() => setPreferServer(!preferServer)}
-        lastExecutionSource={result?.source}
       />
 
       {/* Strategy and Risk Configuration Panel */}

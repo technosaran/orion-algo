@@ -55,11 +55,11 @@ export function GeneralInfoSection({ strategy, onChange }: GeneralInfoSectionPro
   const timeframes: Timeframe[] = ["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1D"];
 
   const categories: { id: StrategyConfig["category"]; label: string; desc: string }[] = [
-    { id: "momentum", label: "Momentum", desc: "Exploit high-velocity directional surges" },
-    { id: "scalping", label: "Intraday Scalping", desc: "Rapid short-duration micro trades (3m/5m)" },
-    { id: "trend", label: "Trend Following", desc: "Ride dominant market trend (Supertrend/EMA)" },
-    { id: "breakout", label: "Range Breakout", desc: "Enter on opening range or 20-period breakout" },
-    { id: "mean_reversion", label: "Mean Reversion", desc: "Fade extremes back to VWAP / 20-SMA" },
+    { id: "momentum", label: "Momentum", desc: "Follow strong directional price moves" },
+    { id: "scalping", label: "Intraday Scalping", desc: "Quick short-term trades" },
+    { id: "trend", label: "Trend Following", desc: "Follow the broader market trend" },
+    { id: "breakout", label: "Range Breakout", desc: "Enter when price breaks range levels" },
+    { id: "mean_reversion", label: "Mean Reversion", desc: "Trade reversals back to average price" },
   ];
 
   const popularSymbols = INDIAN_SYMBOLS[strategy.assetClass] || INDIAN_SYMBOLS.nse_fno;
@@ -73,15 +73,15 @@ export function GeneralInfoSection({ strategy, onChange }: GeneralInfoSectionPro
             01
           </div>
           <div>
-            <h2 className="text-base font-semibold text-white">Indian Market Segment & Instrument Setup</h2>
+            <h2 className="text-base font-semibold text-white">Market & Instrument Setup</h2>
             <p className="text-xs text-[#94a3b8]">
-              Configure NSE / BSE / MCX exchange segment, product type (MIS / CNC / NRML), and trading parameters.
+              Select exchange segment, symbol, timeframe, and product type.
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-            INR (₹) Base
+            INR (₹)
           </span>
           <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-[#131b2a] text-[#94a3b8] border border-[#222e42]">
             Section 1 of 5
@@ -91,11 +91,11 @@ export function GeneralInfoSection({ strategy, onChange }: GeneralInfoSectionPro
 
       {/* Grid Configuration */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* Strategy Archetype */}
+        {/* Strategy Type */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-[#94a3b8] flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-emerald-400" />
-            Strategy Archetype
+            Strategy Type
           </label>
           <select
             value={strategy.category}

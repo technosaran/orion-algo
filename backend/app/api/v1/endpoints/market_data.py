@@ -3,10 +3,17 @@ from fastapi import APIRouter, Query, HTTPException
 from app.services.market_data_service import (
     get_all_real_quotes,
     get_real_historical_candles,
+    get_indian_market_status,
     SYMBOL_MAPPINGS,
 )
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
+
+
+@router.get("/market-status")
+async def get_market_status():
+    """Returns current NSE/BSE market session status (Pre-open, Open, Closed, Weekend)."""
+    return get_indian_market_status()
 
 
 @router.get("/quotes")

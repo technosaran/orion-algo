@@ -175,9 +175,9 @@ export function EntryConditionsSection({
             02
           </div>
           <div>
-            <h2 className="text-base font-semibold text-white">Entry Signals & Algorithmic Triggers</h2>
+            <h2 className="text-base font-semibold text-white">Entry Rules</h2>
             <p className="text-xs text-[#94a3b8]">
-              Assemble quantitative logic blocks. When conditions evaluate to True on candle close, an entry order is dispatched.
+              Define conditions to trigger an entry order when a candle closes.
             </p>
           </div>
         </div>

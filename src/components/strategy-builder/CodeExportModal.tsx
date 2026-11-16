@@ -64,8 +64,8 @@ export function CodeExportModal({
               <Code2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Strategy Code & Schema Export</h3>
-              <p className="text-xs text-[#94a3b8]">Production-ready quantitative code derived from your visual section rules.</p>
+              <h3 className="text-base font-bold text-white">Export Strategy Code</h3>
+              <p className="text-xs text-[#94a3b8]">Download or copy Python code and JSON schema for your strategy.</p>
             </div>
           </div>
 

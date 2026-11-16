@@ -126,14 +126,14 @@ export function EquityChart({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold text-white tracking-wide">
-                Strategy Performance Trajectory
+                Equity & Performance Chart
               </h2>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                TradingView Powered
+                TradingView
               </span>
             </div>
             <p className="text-xs text-[#64748b]">
-              Mark-to-market equity curve, benchmark buy & hold, and peak-to-trough drawdowns
+              Equity curve, benchmark comparison, and drawdowns
             </p>
           </div>
         </div>

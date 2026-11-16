@@ -1,0 +1,90 @@
+[
+  {
+    "id": "ds-gold-1h-1794664243561",
+    "symbol": "GOLD",
+    "name": "GOLD (1H) Training Dataset",
+    "category": "commodity",
+    "source": "yahoo",
+    "timeframe": "1h",
+    "range": "1mo",
+    "candleCount": 524,
+    "startDate": "14 Oct 09:30 am",
+    "endDate": "14 Nov 02:30 am",
+    "candles": [],
+    "stats": {
+      "high": 4220.4,
+      "low": 3856.7,
+      "avgClose": 4060.09,
+      "avgVolume": 7103,
+      "volatilityPct": 2.16
+    },
+    "createdAt": 1794664243561,
+    "updatedAt": 1794664243561
+  },
+  {
+    "id": "ds-reliance-1d-1794664243211",
+    "symbol": "RELIANCE",
+    "name": "RELIANCE (1D) Training Dataset",
+    "category": "stock",
+    "source": "yahoo",
+    "timeframe": "1d",
+    "range": "3mo",
+    "candleCount": 63,
+    "startDate": "13 Aug 09:15 am",
+    "endDate": "13 Nov 09:15 am",
+    "candles": [],
+    "stats": {
+      "high": 1350.7,
+      "low": 1152.2,
+      "avgClose": 1253.19,
+      "avgVolume": 15081557,
+      "volatilityPct": 4.66
+    },
+    "createdAt": 1794664243211,
+    "updatedAt": 1794664243211
+  },
+  {
+    "id": "ds-banknifty-15m-1794664242880",
+    "symbol": "BANKNIFTY",
+    "name": "BANKNIFTY (15M) Training Dataset",
+    "category": "index",
+    "source": "yahoo",
+    "timeframe": "15m",
+    "range": "1mo",
+    "candleCount": 526,
+    "startDate": "14 Oct 09:15 am",
+    "endDate": "13 Nov 03:30 pm",
+    "candles": [],
+    "stats": {
+      "high": 61543,
+      "low": 53626.15,
+      "avgClose": 56323.21,
+      "avgVolume": 0,
+      "volatilityPct": 4.15
+    },
+    "createdAt": 1794664242880,
+    "updatedAt": 1794664242880
+  },
+  {
+    "id": "ds-nifty50-15m-1794664242502",
+    "symbol": "NIFTY50",
+    "name": "NIFTY50 (15M) Training Dataset",
+    "category": "index",
+    "source": "yahoo",
+    "timeframe": "15m",
+    "range": "1mo",
+    "candleCount": 526,
+    "startDate": "14 Oct 09:15 am",
+    "endDate": "13 Nov 03:30 pm",
+    "candles": [],
+    "stats": {
+      "high": 25424.35,
+      "low": 22372.15,
+      "avgClose": 23538.79,
+      "avgVolume": 0,
+      "volatilityPct": 4.16
+    },
+    "createdAt": 1794664242502,
+    "updatedAt": 1794664242502
+  }
+]

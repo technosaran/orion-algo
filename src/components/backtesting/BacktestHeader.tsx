@@ -2,15 +2,11 @@
 
 import React from "react";
 import { STRATEGY_PRESETS, PresetStrategy } from "@/lib/backtest/engine";
-import { BacktestConfig } from "@/lib/backtest/types";
 import {
   FlaskConical,
   Play,
   RotateCcw,
   Sparkles,
-  Server,
-  Cpu,
-  CheckCircle2,
 } from "lucide-react";
 
 interface BacktestHeaderProps {
@@ -18,9 +14,6 @@ interface BacktestHeaderProps {
   isRunning: boolean;
   activePresetId: string | null;
   onSelectPreset: (preset: PresetStrategy) => void;
-  preferServer: boolean;
-  onToggleEngine: () => void;
-  lastExecutionSource?: "server" | "client";
 }
 
 export function BacktestHeader({
@@ -28,57 +21,33 @@ export function BacktestHeader({
   isRunning,
   activePresetId,
   onSelectPreset,
-  preferServer,
-  onToggleEngine,
-  lastExecutionSource,
 }: BacktestHeaderProps) {
   return (
     <div className="flex flex-col gap-4 pb-2">
       {/* Top Bar: Title & Primary Action */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
+          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
             <FlaskConical className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">
-                Backtesting Lab
+                Backtesting
               </h1>
             </div>
             <p className="text-xs md:text-sm text-[#94a3b8] mt-0.5">
-              Simulate quantitative strategies against historical price data with slippage, leverage, and fees
+              Test strategies against historical price data with realistic slippage, leverage, and fees
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Engine Selector */}
-          <button
-            onClick={onToggleEngine}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
-              preferServer
-                ? "bg-indigo-950/40 text-indigo-300 border-indigo-500/40 hover:bg-indigo-900/40"
-                : "bg-[#131b2a] text-[#cbd5e1] border-[#1e293b] hover:bg-[#1a253a]"
-            }`}
-            title="Toggle between Client-side Instant Turbo engine and FastAPI Python Server simulation"
-          >
-            {preferServer ? (
-              <Server className="w-3.5 h-3.5 text-indigo-400" />
-            ) : (
-              <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-            )}
-            <span>
-              Engine: <strong className="text-white">{preferServer ? "FastAPI Server" : "Turbo Client"}</strong>
-            </span>
-          </button>
-
-          {/* Run Backtest CTA Button */}
+        <div className="flex items-center gap-3">
           <button
             onClick={onRun}
             disabled={isRunning}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#080a0f] font-semibold text-sm shadow-[0_0_20px_rgba(16,185,129,0.25)] transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#080a0f] font-semibold text-sm shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.98]"
           >
             {isRunning ? (
               <>

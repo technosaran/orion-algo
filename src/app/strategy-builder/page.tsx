@@ -33,7 +33,7 @@ import { STRATEGY_TEMPLATES } from "@/lib/strategy-templates";
 function createBlankStrategy(): StrategyConfig {
   return {
     id: "strat-blank",
-    name: "New Indian Strategy",
+    name: "New Strategy",
     description: "",
     category: "momentum",
     assetClass: "nse_fno",
@@ -294,12 +294,12 @@ export default function StrategyBuilderPage() {
     label: string;
     icon: React.ComponentType<{ className?: string }>;
   }[] = [
-    { id: "all", label: "Full Strategy View", icon: Layers },
-    { id: "1", label: "01 Architecture", icon: Sliders },
-    { id: "2", label: "02 Entry Signals", icon: TrendingUp },
+    { id: "all", label: "Overview", icon: Layers },
+    { id: "1", label: "01 Setup", icon: Sliders },
+    { id: "2", label: "02 Entry Rules", icon: TrendingUp },
     { id: "3", label: "03 Risk & Exits", icon: ShieldAlert },
-    { id: "4", label: "04 Sizing & Margin", icon: PieChart },
-    { id: "5", label: "05 Backtest & Verify", icon: BarChart3 },
+    { id: "4", label: "04 Position Sizing", icon: PieChart },
+    { id: "5", label: "05 Backtest", icon: BarChart3 },
   ];
 
   return (
@@ -349,7 +349,7 @@ export default function StrategyBuilderPage() {
         </div>
 
         <div className="hidden lg:flex items-center gap-2 text-xs text-[#64748b]">
-          <span>Indian Strategy Engine</span>
+          <span>Strategy Builder</span>
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-[#94a3b8] font-mono">{strategy.name}</span>
         </div>

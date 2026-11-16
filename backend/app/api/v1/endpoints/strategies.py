@@ -7,6 +7,11 @@ from pydantic import BaseModel, Field
 
 from app.db.supabase import get_supabase_client
 from app.services.market_data_service import get_real_historical_candles
+from app.services.condition_evaluator import (
+    IndicatorStore,
+    evaluate_entry_trigger,
+    evaluate_exit_trigger,
+)
 
 router = APIRouter()
 logger = logging.getLogger("strategies_api")
@@ -173,6 +178,39 @@ def get_strategy_templates():
             "currency": "INR",
             "initialCapital": 150000,
         },
+        {
+            "id": "template-crudeoil-mcx",
+            "name": "CRUDEOIL MCX Positional Trend Following (NRML)",
+            "category": "trend",
+            "segment": "MCX Commodity",
+            "symbol": "CRUDEOIL",
+            "timeframe": "1h",
+            "direction": "both",
+            "currency": "INR",
+            "initialCapital": 300000,
+        },
+        {
+            "id": "template-nifty-golden-cross",
+            "name": "NIFTY 50 Golden Cross Macro Swing (NRML)",
+            "category": "trend",
+            "segment": "NSE F&O",
+            "symbol": "NIFTY 50",
+            "timeframe": "1h",
+            "direction": "long",
+            "currency": "INR",
+            "initialCapital": 500000,
+        },
+        {
+            "id": "template-nifty-920-straddle",
+            "name": "NIFTY 9:20 AM Options Theta Scalp (MIS)",
+            "category": "scalping",
+            "segment": "NSE Options",
+            "symbol": "NIFTY 50",
+            "timeframe": "1m",
+            "direction": "both",
+            "currency": "INR",
+            "initialCapital": 300000,
+        },
     ]
 
 
@@ -230,77 +268,128 @@ async def run_strategy_backtest(strategy: StrategyConfigModel):
     current_equity = initial_capital
 
     if len(candles) >= 15:
-        closes = [c["close"] for c in candles]
-        
-        # Calculate moving averages for signal generation
-        period = 9
-        sma = []
-        for i in range(len(closes)):
-            if i < period - 1:
-                sma.append(None)
-            else:
-                sma.append(sum(closes[i - period + 1 : i + 1]) / period)
+        # Build dynamic indicator store for condition evaluation
+        store = IndicatorStore(candles)
+        entry_groups_data = [g.model_dump() for g in strategy.entryGroups]
+        exit_groups_data = [g.model_dump() for g in strategy.exitGroups] if strategy.customExitEnabled else []
 
         in_pos = False
+        pos_side = "LONG"
         entry_price = 0.0
         entry_step = 0
+        highest_price = 0.0
+        lowest_price = float("inf")
 
-        for i in range(period, len(candles) - 1):
-            cur_close = closes[i]
-            prev_close = closes[i - 1]
-            cur_sma = sma[i]
-            prev_sma = sma[i - 1]
+        strat_direction = strategy.direction.lower()
+        sl_pct = strategy.riskManagement.stopLossValue / 100.0
+        tp_pct = strategy.riskManagement.takeProfitValue / 100.0
+        use_tsl = strategy.riskManagement.useTrailingStop
+        tsl_act = strategy.riskManagement.trailingStopActivation / 100.0
+        tsl_step = strategy.riskManagement.trailingStopStep / 100.0
 
-            if not in_pos and cur_sma is not None and prev_sma is not None:
-                # Signal on bar i, enter on bar i + 1 open (prevents look-ahead bias)
-                if prev_close <= prev_sma and cur_close > cur_sma:
+        for i in range(10, len(candles) - 1):
+            cur_close = candles[i]["close"]
+            cur_high = candles[i]["high"]
+            cur_low = candles[i]["low"]
+
+            if not in_pos:
+                # Evaluate user-defined entry conditions dynamically
+                is_entry_triggered = evaluate_entry_trigger(entry_groups_data, i, store)
+                if is_entry_triggered:
                     in_pos = True
+                    pos_side = "SHORT" if strat_direction == "short" else "LONG"
                     entry_price = candles[i + 1]["open"]
                     entry_step = i + 1
-
-            elif in_pos:
-                high_p = candles[i]["high"]
-                low_p = candles[i]["low"]
-                sl_price = entry_price * (1.0 - (strategy.riskManagement.stopLossValue / 100.0))
-                tp_price = entry_price * (1.0 + (strategy.riskManagement.takeProfitValue / 100.0))
+                    highest_price = entry_price
+                    lowest_price = entry_price
+            else:
+                highest_price = max(highest_price, cur_high)
+                lowest_price = min(lowest_price, cur_low)
 
                 exit_reason = None
                 exit_price = cur_close
 
-                if low_p <= sl_price:
-                    exit_reason = "Stop Loss"
-                    exit_price = sl_price
-                elif high_p >= tp_price:
-                    exit_reason = "Take Profit"
-                    exit_price = tp_price
-                elif prev_close >= prev_sma and cur_close < cur_sma:
-                    exit_reason = "Signal Exit"
-                    exit_price = cur_close
-                elif (i - entry_step) >= max(1, strategy.riskManagement.maxHoldingBars):
+                # Stop loss & Take profit calculations
+                if pos_side == "LONG":
+                    sl_price = entry_price * (1.0 - sl_pct)
+                    tp_price = entry_price * (1.0 + tp_pct)
+                    
+                    # Trailing Stop Loss
+                    if use_tsl and highest_price >= entry_price * (1.0 + tsl_act):
+                        trail_sl = highest_price * (1.0 - tsl_step)
+                        sl_price = max(sl_price, trail_sl)
+
+                    if cur_low <= sl_price:
+                        exit_reason = "Stop Loss"
+                        exit_price = sl_price
+                    elif cur_high >= tp_price:
+                        exit_reason = "Take Profit"
+                        exit_price = tp_price
+                else:  # SHORT
+                    sl_price = entry_price * (1.0 + sl_pct)
+                    tp_price = entry_price * (1.0 - tp_pct)
+
+                    # Trailing Stop Loss
+                    if use_tsl and lowest_price <= entry_price * (1.0 - tsl_act):
+                        trail_sl = lowest_price * (1.0 + tsl_step)
+                        sl_price = min(sl_price, trail_sl)
+
+                    if cur_high >= sl_price:
+                        exit_reason = "Stop Loss"
+                        exit_price = sl_price
+                    elif cur_low <= tp_price:
+                        exit_reason = "Take Profit"
+                        exit_price = tp_price
+
+                # Custom rule exit
+                if not exit_reason and strategy.customExitEnabled and exit_groups_data:
+                    if evaluate_exit_trigger(exit_groups_data, i, store):
+                        exit_reason = "Rule Exit"
+                        exit_price = cur_close
+
+                # Max holding time exit
+                if not exit_reason and (i - entry_step) >= max(1, strategy.riskManagement.maxHoldingBars):
                     exit_reason = "Time Exit"
                     exit_price = cur_close
 
                 if exit_reason:
                     in_pos = False
-                    pnl_gross = (exit_price - entry_price) * quantity if strategy.direction.lower() != "short" else (entry_price - exit_price) * quantity
+                    pnl_gross = (
+                        (exit_price - entry_price) * quantity
+                        if pos_side == "LONG"
+                        else (entry_price - exit_price) * quantity
+                    )
+                    # Institutional Indian Brokerage & Tax breakdown
                     flat_brokerage = (strategy.positionSizing.feePerOrder or 20.0) * 2
                     turnover = (entry_price + exit_price) * quantity
                     stt = turnover * (strategy.positionSizing.sttTaxPct / 100.0)
-                    total_fee = flat_brokerage + stt
+                    exchange_fee = turnover * 0.0000325  # NSE exchange fee
+                    gst = (flat_brokerage + exchange_fee) * 0.18  # 18% GST
+                    sebi_fee = turnover * 0.000001  # SEBI turnover charge
+                    total_fee = flat_brokerage + stt + exchange_fee + gst + sebi_fee
                     total_brokerage += total_fee
 
                     pnl_net = round(pnl_gross - total_fee, 2)
-                    pnl_pct = round(((exit_price - entry_price) / entry_price) * 100.0, 2)
+                    pnl_pct = round(
+                        ((exit_price - entry_price) / entry_price) * 100.0
+                        if pos_side == "LONG"
+                        else ((entry_price - exit_price) / entry_price) * 100.0,
+                        2,
+                    )
                     current_equity = round(current_equity + pnl_net, 2)
                     if current_equity > peak:
                         peak = current_equity
 
-                    dd_pct = round(((peak - current_equity) / peak) * 100.0, 2) if peak > 0 else 0.0
+                    dd_pct = (
+                        round(((peak - current_equity) / peak) * 100.0, 2)
+                        if peak > 0
+                        else 0.0
+                    )
 
                     trades.append({
                         "id": f"trade-{len(trades)+1}",
                         "tradeNumber": len(trades) + 1,
-                        "direction": strategy.direction.upper() if strategy.direction != "both" else "LONG",
+                        "direction": pos_side,
                         "entryPrice": round(entry_price, 2),
                         "exitPrice": round(exit_price, 2),
                         "quantity": quantity,

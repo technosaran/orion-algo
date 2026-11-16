@@ -52,62 +52,22 @@ export function StrategyHeader({
 }: StrategyHeaderProps) {
   const [isSavedOpen, setIsSavedOpen] = useState(false);
 
-  const segmentLabel =
-    strategy.assetClass === "nse_fno"
-      ? "NSE F&O"
-      : strategy.assetClass === "nse_equity"
-      ? "NSE CASH"
-      : strategy.assetClass === "mcx_commodity"
-      ? "MCX"
-      : strategy.assetClass === "bse_equity"
-      ? "BSE"
-      : strategy.assetClass.toUpperCase();
-
   return (
     <div className="bg-[#0b0e14] border-b border-[#1a2230] px-6 py-4">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Title & Metadata */}
-        <div className="flex items-start gap-4">
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shrink-0 mt-0.5">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shrink-0">
             <TrendingUp className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <input
-                type="text"
-                value={strategy.name}
-                onChange={(e) => onUpdateStrategy({ name: e.target.value })}
-                className="text-xl font-bold text-white bg-transparent border-b border-transparent hover:border-[#2a374a] focus:border-emerald-500/50 focus:outline-none transition-colors px-1 py-0.5 rounded"
-                placeholder="Strategy Name..."
-              />
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 capitalize">
-                {strategy.status}
-              </span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
-                {strategy.productType || "MIS"}
-              </span>
-              <span className="text-xs font-medium px-2 py-0.5 rounded bg-[#161f30] text-[#94a3b8] uppercase tracking-wider font-mono">
-                {segmentLabel} • {strategy.symbol} • {strategy.timeframe} • INR (₹)
-              </span>
-
-              {/* DB Status Badge */}
-              <div
-                className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono border bg-[#121926] border-[#222e42] text-[#94a3b8]"
-                title={
-                  dbSource === "database"
-                    ? "Connected to Supabase PostgreSQL Database"
-                    : "Operating in Local Cache Mode"
-                }
-              >
-                <Database className={`w-3 h-3 ${dbSource === "database" ? "text-emerald-400" : "text-amber-400"}`} />
-                <span className={dbSource === "database" ? "text-emerald-400 font-semibold" : "text-amber-300"}>
-                  {dbSource === "database" ? "Supabase DB" : "Local Sync"}
-                </span>
-              </div>
-            </div>
-            <p className="text-xs text-[#94a3b8] mt-1 line-clamp-1 max-w-2xl">
-              {strategy.description || "Configure Indian market rules below to engineer automated quantitative trading logic."}
-            </p>
+            <input
+              type="text"
+              value={strategy.name}
+              onChange={(e) => onUpdateStrategy({ name: e.target.value })}
+              className="text-xl font-bold text-white bg-transparent border-b border-transparent hover:border-[#2a374a] focus:border-emerald-500/50 focus:outline-none transition-colors px-1 py-0.5 rounded"
+              placeholder="Strategy Name..."
+            />
           </div>
         </div>
 
@@ -128,7 +88,7 @@ export function StrategyHeader({
               <div className="absolute right-0 mt-2 w-72 bg-[#0e1624] border border-[#222e42] rounded-xl shadow-2xl p-2 z-50 space-y-2">
                 <div className="flex items-center justify-between px-2 py-1 border-b border-[#1c293c]">
                   <span className="text-[11px] font-bold text-[#94a3b8] uppercase">
-                    Your Database Strategies
+                    Saved Strategies
                   </span>
                   <button
                     onClick={() => {
@@ -182,7 +142,7 @@ export function StrategyHeader({
 
                   {savedStrategies.length === 0 && (
                     <div className="py-4 text-center text-xs text-[#64748b]">
-                      No strategies saved yet. Click Save to store in database.
+                      No saved strategies yet.
                     </div>
                   )}
                 </div>
@@ -193,7 +153,7 @@ export function StrategyHeader({
           <button
             onClick={onOpenTemplates}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#131b2a] hover:bg-[#1a2538] border border-[#222e42] text-xs font-medium text-[#cbd5e1] hover:text-white transition-all shadow-sm"
-            title="Choose from battle-tested Indian market templates (Nifty, BankNifty, Reliance)"
+            title="Choose from strategy templates"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>Templates</span>
@@ -202,7 +162,7 @@ export function StrategyHeader({
           <button
             onClick={onOpenCodeExport}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#131b2a] hover:bg-[#1a2538] border border-[#222e42] text-xs font-medium text-[#cbd5e1] hover:text-white transition-all shadow-sm"
-            title="Inspect generated Python broker code (KiteConnect / Dhan / Angel)"
+            title="Export Python code or JSON"
           >
             <Code2 className="w-3.5 h-3.5 text-cyan-400" />
             <span>Export Code</span>
@@ -219,7 +179,7 @@ export function StrategyHeader({
           <button
             onClick={onSave}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#131b2a] hover:bg-[#1a2538] border border-emerald-500/30 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-all shadow-sm"
-            title="Save strategy to database"
+            title="Save strategy"
           >
             {saveStatus ? (
               <>
@@ -229,7 +189,7 @@ export function StrategyHeader({
             ) : (
               <>
                 <Save className="w-3.5 h-3.5" />
-                <span>Save to DB</span>
+                <span>Save</span>
               </>
             )}
           </button>
@@ -240,7 +200,7 @@ export function StrategyHeader({
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-[0.98] disabled:opacity-50"
           >
             <Play className={`w-3.5 h-3.5 fill-current ${isBacktesting ? "animate-spin" : ""}`} />
-            <span>{isBacktesting ? "Simulating..." : "Run Indian Backtest"}</span>
+            <span>{isBacktesting ? "Running..." : "Run Backtest"}</span>
           </button>
         </div>
       </div>

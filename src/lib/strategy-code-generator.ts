@@ -70,7 +70,7 @@ export function generatePythonCode(strategy: StrategyConfig): string {
   }
 
   return `"""
-Orion Algo - Indian Markets Quantitative Trading Engine
+Orion Algo - Strategy Code Export
 Strategy: ${strategy.name}
 Exchange Segment: ${strategy.assetClass.toUpperCase()} | Symbol: ${strategy.symbol}
 Product Type: ${strategy.productType} (Intraday/Positional) | Currency: INR (₹)
@@ -84,7 +84,7 @@ from datetime import datetime, time
 from typing import Dict, Any, Optional
 
 
-class ${strategy.name.replace(/[^a-zA-Z0-9]/g, "")}IndianStrategy:
+class ${strategy.name.replace(/[^a-zA-Z0-9]/g, "")}Strategy:
     def __init__(self):
         self.name = "${strategy.name}"
         self.symbol = "${strategy.symbol}"
@@ -120,7 +120,7 @@ class ${strategy.name.replace(/[^a-zA-Z0-9]/g, "")}IndianStrategy:
 
     def evaluate_entry(self, data: pd.DataFrame, current_time: Optional[datetime] = None) -> bool:
         """
-        Evaluates entry logic during active Indian market hours.
+        Evaluates entry rules on candle close.
         """
         # Block entry after 15:00 IST for intraday MIS orders
         if current_time and self.product_type == "MIS":
@@ -145,7 +145,7 @@ ${exitRules}
 
     def calculate_lot_quantity(self, current_capital_inr: float, ltp: float) -> int:
         """
-        Calculates quantity conforming to Indian exchange lot sizes.
+        Calculates position quantity based on lot size.
         """
         if self.sizing_type == "lots":
             lots = int(self.sizing_value)
@@ -161,7 +161,7 @@ ${exitRules}
 
 
 if __name__ == "__main__":
-    print(f"Strategy Initialized for Indian Markets: {strategy.name}")
+    print(f"Strategy Initialized: {strategy.name}")
     print(f"Segment: {strategy.assetClass.toUpperCase()} | Capital: ₹{strategy.initialCapital:,}")
 `;
 }

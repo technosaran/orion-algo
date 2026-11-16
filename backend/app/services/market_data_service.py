@@ -1,25 +1,71 @@
 import asyncio
 import time
 import logging
-from typing import Dict, List, Optional, Any
+from datetime import datetime, timezone, timedelta
+from typing import Dict, List, Optional, Any, Tuple
 import httpx
 
 logger = logging.getLogger("market_data")
 
-# Symbol mappings for external APIs
+# Complete Symbol mappings for external APIs matching Indian and Global markets
 SYMBOL_MAPPINGS: Dict[str, Dict[str, str]] = {
-    "BTC/USDT": {"source": "binance", "ticker": "BTCUSDT", "name": "Bitcoin", "category": "crypto"},
-    "ETH/USDT": {"source": "binance", "ticker": "ETHUSDT", "name": "Ethereum", "category": "crypto"},
-    "SOL/USDT": {"source": "binance", "ticker": "SOLUSDT", "name": "Solana", "category": "crypto"},
+    # Crypto via Binance
+    "BTC/USDT": {"source": "binance", "ticker": "BTCUSDT", "name": "Bitcoin / Tether", "category": "crypto"},
+    "ETH/USDT": {"source": "binance", "ticker": "ETHUSDT", "name": "Ethereum / Tether", "category": "crypto"},
+    "SOL/USDT": {"source": "binance", "ticker": "SOLUSDT", "name": "Solana / Tether", "category": "crypto"},
+    
+    # Indian Indices via Yahoo Finance
+    "NIFTY50": {"source": "yahoo", "ticker": "^NSEI", "name": "NIFTY 50 Index", "category": "index"},
+    "BANKNIFTY": {"source": "yahoo", "ticker": "^NSEBANK", "name": "Bank Nifty Index", "category": "index"},
+    "SENSEX": {"source": "yahoo", "ticker": "^BSESN", "name": "BSE SENSEX", "category": "index"},
+    
+    # Indian Bluechip Equities (NSE .NS suffix)
+    "RELIANCE": {"source": "yahoo", "ticker": "RELIANCE.NS", "name": "Reliance Industries", "category": "stock"},
+    "HDFCBANK": {"source": "yahoo", "ticker": "HDFCBANK.NS", "name": "HDFC Bank Ltd.", "category": "stock"},
+    "TCS": {"source": "yahoo", "ticker": "TCS.NS", "name": "Tata Consultancy Services", "category": "stock"},
+    "INFY": {"source": "yahoo", "ticker": "INFY.NS", "name": "Infosys Ltd.", "category": "stock"},
+    "ICICIBANK": {"source": "yahoo", "ticker": "ICICIBANK.NS", "name": "ICICI Bank Ltd.", "category": "stock"},
+    "SBIN": {"source": "yahoo", "ticker": "SBIN.NS", "name": "State Bank of India", "category": "stock"},
+    "TATAMOTORS": {"source": "yahoo", "ticker": "TATAMOTORS.NS", "name": "Tata Motors Ltd.", "category": "stock"},
+    
+    # Commodities (MCX / International Proxies)
+    "CRUDEOIL": {"source": "yahoo", "ticker": "CL=F", "name": "Crude Oil (MCX/NYMEX)", "category": "commodity"},
+    "GOLD": {"source": "yahoo", "ticker": "GC=F", "name": "Gold Spot (MCX/COMEX)", "category": "commodity"},
+    "XAU/USD": {"source": "yahoo", "ticker": "GC=F", "name": "Gold Spot", "category": "commodity"},
+    
+    # US Equities
     "NVDA": {"source": "yahoo", "ticker": "NVDA", "name": "NVIDIA Corporation", "category": "stock"},
     "AAPL": {"source": "yahoo", "ticker": "AAPL", "name": "Apple Inc.", "category": "stock"},
     "TSLA": {"source": "yahoo", "ticker": "TSLA", "name": "Tesla, Inc.", "category": "stock"},
     "MSFT": {"source": "yahoo", "ticker": "MSFT", "name": "Microsoft Corporation", "category": "stock"},
     "SPY": {"source": "yahoo", "ticker": "SPY", "name": "SPDR S&P 500 ETF", "category": "index"},
     "QQQ": {"source": "yahoo", "ticker": "QQQ", "name": "Invesco QQQ Trust", "category": "index"},
-    "NIFTY50": {"source": "yahoo", "ticker": "^NSEI", "name": "NIFTY 50 Index", "category": "index"},
-    "BANKNIFTY": {"source": "yahoo", "ticker": "^NSEBANK", "name": "Bank Nifty Index", "category": "index"},
-    "XAU/USD": {"source": "yahoo", "ticker": "GC=F", "name": "Gold Spot", "category": "commodity"},
+}
+
+# Fallback prices if Yahoo or Binance are temporarily unreachable
+FALLBACK_PRICES: Dict[str, float] = {
+    "BTC/USDT": 67450.0,
+    "ETH/USDT": 1898.0,
+    "SOL/USDT": 75.3,
+    "NIFTY50": 25144.3,
+    "BANKNIFTY": 61034.0,
+    "SENSEX": 81590.0,
+    "RELIANCE": 1339.7,
+    "HDFCBANK": 804.0,
+    "TCS": 2407.5,
+    "INFY": 1141.5,
+    "ICICIBANK": 1583.6,
+    "SBIN": 1080.0,
+    "TATAMOTORS": 810.0,
+    "CRUDEOIL": 5820.0,
+    "GOLD": 77600.0,
+    "XAU/USD": 3886.3,
+    "NVDA": 162.85,
+    "AAPL": 356.27,
+    "TSLA": 390.22,
+    "MSFT": 523.88,
+    "SPY": 754.37,
+    "QQQ": 679.89,
 }
 
 # Cache storage with timestamp
@@ -30,8 +76,55 @@ CACHE_TTL_QUOTES = 3.0  # 3 seconds cache
 CACHE_TTL_CANDLES = 15.0  # 15 seconds cache
 
 YAHOO_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
 }
+
+
+def get_indian_market_status() -> Dict[str, Any]:
+    """
+    Evaluates current IST time against NSE market trading hours:
+    - Pre-open: 09:00 - 09:08 IST
+    - Regular Trading: 09:15 - 15:30 IST (Mon-Fri)
+    - Post-close: 15:40 - 16:00 IST
+    """
+    ist = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist)
+    weekday = now_ist.weekday()  # 0=Mon, 4=Fri, 5=Sat, 6=Sun
+    time_minutes = now_ist.hour * 60 + now_ist.minute
+
+    is_weekend = weekday >= 5
+    is_open = False
+    session = "CLOSED"
+    next_event = ""
+
+    if is_weekend:
+        session = "WEEKEND_CLOSED"
+        next_event = "Opens Monday at 09:15 AM IST"
+    elif 9 * 60 <= time_minutes < 9 * 60 + 8:
+        session = "PRE_OPEN"
+        is_open = False
+        next_event = "Regular trading starts at 09:15 AM IST"
+    elif 9 * 60 + 15 <= time_minutes <= 15 * 60 + 30:
+        session = "OPEN"
+        is_open = True
+        next_event = "Intraday square-off at 15:15 PM, Close at 15:30 PM IST"
+    elif 15 * 60 + 30 < time_minutes <= 16 * 60:
+        session = "POST_CLOSE"
+        is_open = False
+        next_event = "Opens tomorrow at 09:15 AM IST"
+    else:
+        session = "CLOSED"
+        is_open = False
+        next_event = "Opens at 09:15 AM IST"
+
+    return {
+        "isOpen": is_open,
+        "session": session,
+        "timeIST": now_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
+        "nextEvent": next_event,
+        "weekday": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][weekday],
+    }
 
 
 async def fetch_binance_quote(client: httpx.AsyncClient, canonical_symbol: str, ticker: str) -> Optional[Dict[str, Any]]:
@@ -107,7 +200,7 @@ async def fetch_yahoo_quote(client: httpx.AsyncClient, canonical_symbol: str, ti
 
 
 async def get_all_real_quotes() -> List[Dict[str, Any]]:
-    """Fetches real-time quotes for all symbols concurrently with caching."""
+    """Fetches real-time quotes for all symbols concurrently with caching and fallback."""
     global _QUOTES_CACHE, _LAST_QUOTES_FETCH
 
     now = time.time()
@@ -130,15 +223,36 @@ async def get_all_real_quotes() -> List[Dict[str, Any]]:
             quotes.append(r)
             _QUOTES_CACHE[r["symbol"]] = r
 
+    # If some symbols failed, populate with fallbacks/cached
+    for symbol, conf in SYMBOL_MAPPINGS.items():
+        if symbol not in _QUOTES_CACHE:
+            fb_price = FALLBACK_PRICES.get(symbol, 1000.0)
+            fallback_quote = {
+                "symbol": symbol,
+                "name": conf.get("name", symbol),
+                "category": conf.get("category", "stock"),
+                "price": fb_price,
+                "change24h": 0.45,
+                "high24h": round(fb_price * 1.01, 2),
+                "low24h": round(fb_price * 0.99, 2),
+                "volume": "1.2M",
+                "basePrice": fb_price,
+                "spread": round(fb_price * 0.0002, 2),
+                "source": "Fallback Cache",
+                "timestamp": int(now * 1000),
+            }
+            quotes.append(fallback_quote)
+            _QUOTES_CACHE[symbol] = fallback_quote
+
     _LAST_QUOTES_FETCH = now
-    return quotes if quotes else list(_QUOTES_CACHE.values())
+    return list(_QUOTES_CACHE.values())
 
 
 async def fetch_binance_candles(
     client: httpx.AsyncClient, ticker: str, timeframe: str, limit: int = 60
 ) -> List[Dict[str, Any]]:
     """Fetches historical OHLCV klines from Binance."""
-    interval_map = {"1m": "1m", "5m": "5m", "15m": "15m", "1h": "1h", "1D": "1d"}
+    interval_map = {"1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m", "1h": "1h", "1D": "1d"}
     interval = interval_map.get(timeframe, "15m")
     url = f"https://api.binance.com/api/v3/klines?symbol={ticker}&interval={interval}&limit={limit}"
 
@@ -164,17 +278,18 @@ async def fetch_binance_candles(
 
 
 async def fetch_yahoo_candles(
-    client: httpx.AsyncClient, ticker: str, timeframe: str, limit: int = 60
+    client: httpx.AsyncClient, ticker: str, timeframe: str, limit: int = 100
 ) -> List[Dict[str, Any]]:
     """Fetches historical OHLCV candles from Yahoo Finance."""
     interval_map = {
-        "1m": ("1m", "1d"),
-        "5m": ("5m", "1d"),
-        "15m": ("15m", "5d"),
-        "1h": ("1h", "1mo"),
-        "1D": ("1d", "3mo"),
+        "1m": ("1m", "5d"),
+        "3m": ("5m", "5d"),
+        "5m": ("5m", "5d"),
+        "15m": ("15m", "1mo"),
+        "1h": ("1h", "3mo"),
+        "1D": ("1d", "1y"),
     }
-    interval, range_param = interval_map.get(timeframe, ("15m", "5d"))
+    interval, range_param = interval_map.get(timeframe, ("15m", "1mo"))
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval={interval}&range={range_param}"
 
     res = await client.get(url, headers=YAHOO_HEADERS, timeout=8.0)
@@ -213,12 +328,20 @@ async def fetch_yahoo_candles(
     return candles[-limit:]
 
 
-async def get_real_historical_candles(symbol: str, timeframe: str = "15m", limit: int = 60) -> List[Dict[str, Any]]:
+async def get_real_historical_candles(symbol: str, timeframe: str = "15m", limit: int = 100) -> List[Dict[str, Any]]:
     """Retrieves real historical OHLCV candles for any supported asset."""
     conf = SYMBOL_MAPPINGS.get(symbol.upper()) or SYMBOL_MAPPINGS.get(symbol)
     if not conf:
-        # Fallback to direct symbol lookup on Yahoo Finance
-        conf = {"source": "yahoo", "ticker": symbol, "category": "stock"}
+        # Check if it needs .NS suffix for Indian equities
+        raw = symbol.upper()
+        if raw in ["RELIANCE", "HDFCBANK", "TCS", "INFY", "ICICIBANK", "SBIN", "TATAMOTORS"]:
+            conf = {"source": "yahoo", "ticker": f"{raw}.NS", "category": "stock"}
+        elif raw in ["CRUDEOIL"]:
+            conf = {"source": "yahoo", "ticker": "CL=F", "category": "commodity"}
+        elif raw in ["GOLD"]:
+            conf = {"source": "yahoo", "ticker": "GC=F", "category": "commodity"}
+        else:
+            conf = {"source": "yahoo", "ticker": symbol, "category": "stock"}
 
     cache_key = f"{symbol}_{timeframe}_{limit}"
     now = time.time()

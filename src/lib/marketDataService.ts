@@ -1,4 +1,5 @@
 import { AssetQuote, CandleData, ChartTimeframe } from "@/types/paperTrading";
+import { DatasetStats } from "@/types/dataset";
 
 export interface SymbolMeta {
   source: "binance" | "yahoo";
@@ -9,12 +10,18 @@ export interface SymbolMeta {
 }
 
 export const SYMBOL_CONFIGS: Record<string, SymbolMeta> = {
+  // Crypto (24/7 Live Data from Binance)
   "BTC/USDT": { source: "binance", ticker: "BTCUSDT", name: "Bitcoin / Tether", category: "crypto", fallbackPrice: 67450.0 },
   "ETH/USDT": { source: "binance", ticker: "ETHUSDT", name: "Ethereum / Tether", category: "crypto", fallbackPrice: 1898.0 },
   "SOL/USDT": { source: "binance", ticker: "SOLUSDT", name: "Solana / Tether", category: "crypto", fallbackPrice: 75.3 },
+  "BNB/USDT": { source: "binance", ticker: "BNBUSDT", name: "BNB / Tether", category: "crypto", fallbackPrice: 590.0 },
+
+  // Indian Indices (Yahoo Finance)
   "NIFTY50": { source: "yahoo", ticker: "^NSEI", name: "NIFTY 50 Index", category: "index", fallbackPrice: 25144.3 },
   "BANKNIFTY": { source: "yahoo", ticker: "^NSEBANK", name: "Bank Nifty Index", category: "index", fallbackPrice: 61034.0 },
   "SENSEX": { source: "yahoo", ticker: "^BSESN", name: "BSE SENSEX", category: "index", fallbackPrice: 81590.0 },
+
+  // Indian Stocks (NSE)
   "RELIANCE": { source: "yahoo", ticker: "RELIANCE.NS", name: "Reliance Industries", category: "stock", fallbackPrice: 1339.7 },
   "HDFCBANK": { source: "yahoo", ticker: "HDFCBANK.NS", name: "HDFC Bank Ltd.", category: "stock", fallbackPrice: 804.0 },
   "TCS": { source: "yahoo", ticker: "TCS.NS", name: "Tata Consultancy Services", category: "stock", fallbackPrice: 2407.5 },
@@ -22,9 +29,16 @@ export const SYMBOL_CONFIGS: Record<string, SymbolMeta> = {
   "ICICIBANK": { source: "yahoo", ticker: "ICICIBANK.NS", name: "ICICI Bank Ltd.", category: "stock", fallbackPrice: 1583.6 },
   "SBIN": { source: "yahoo", ticker: "SBIN.NS", name: "State Bank of India", category: "stock", fallbackPrice: 1080.0 },
   "TATAMOTORS": { source: "yahoo", ticker: "TMPV.NS", name: "Tata Motors PV", category: "stock", fallbackPrice: 810.0 },
-  "CRUDEOIL": { source: "yahoo", ticker: "CL=F", name: "Crude Oil (MCX/NYMEX)", category: "commodity", fallbackPrice: 88.5 },
-  "GOLD": { source: "yahoo", ticker: "GC=F", name: "Gold Spot (MCX/COMEX)", category: "commodity", fallbackPrice: 3886.3 },
-  "XAU/USD": { source: "yahoo", ticker: "GC=F", name: "Gold Spot", category: "commodity", fallbackPrice: 3886.3 },
+  "BHARTIARTL": { source: "yahoo", ticker: "BHARTIARTL.NS", name: "Bharti Airtel Ltd.", category: "stock", fallbackPrice: 1720.0 },
+  "ITC": { source: "yahoo", ticker: "ITC.NS", name: "ITC Ltd.", category: "stock", fallbackPrice: 475.0 },
+  "LT": { source: "yahoo", ticker: "LT.NS", name: "Larsen & Toubro", category: "stock", fallbackPrice: 3620.0 },
+
+  // Commodities (Yahoo Finance)
+  "CRUDEOIL": { source: "yahoo", ticker: "CL=F", name: "Crude Oil (WTI/MCX)", category: "commodity", fallbackPrice: 88.5 },
+  "GOLD": { source: "yahoo", ticker: "GC=F", name: "Gold Spot (COMEX/MCX)", category: "commodity", fallbackPrice: 3886.3 },
+  "SILVER": { source: "yahoo", ticker: "SI=F", name: "Silver Futures (MCX)", category: "commodity", fallbackPrice: 31.4 },
+
+  // Global Equities & ETFs
   "NVDA": { source: "yahoo", ticker: "NVDA", name: "NVIDIA Corporation", category: "stock", fallbackPrice: 162.85 },
   "AAPL": { source: "yahoo", ticker: "AAPL", name: "Apple Inc.", category: "stock", fallbackPrice: 356.27 },
   "TSLA": { source: "yahoo", ticker: "TSLA", name: "Tesla, Inc.", category: "stock", fallbackPrice: 390.22 },
@@ -132,7 +146,6 @@ export async function getLiveMarketQuotes(): Promise<AssetQuote[]> {
       if (q) return q;
     }
 
-    // Graceful fallback with latest baseline if external request times out
     return {
       symbol,
       name: conf.name,
@@ -152,12 +165,66 @@ export async function getLiveMarketQuotes(): Promise<AssetQuote[]> {
 }
 
 /**
- * Fetches real historical OHLCV candles
+ * Computes statistical properties of candle series for ML training / analysis
+ */
+export function computeDatasetStats(candles: CandleData[]): DatasetStats {
+  if (candles.length === 0) {
+    return { high: 0, low: 0, avgClose: 0, avgVolume: 0, volatilityPct: 0 };
+  }
+
+  let high = -Infinity;
+  let low = Infinity;
+  let sumClose = 0;
+  let sumVol = 0;
+
+  candles.forEach((c) => {
+    if (c.high > high) high = c.high;
+    if (c.low < low) low = c.low;
+    sumClose += c.close;
+    sumVol += c.volume;
+  });
+
+  const avgClose = sumClose / candles.length;
+  const avgVolume = Math.round(sumVol / candles.length);
+
+  // Compute sample standard deviation of close prices
+  let variance = 0;
+  candles.forEach((c) => {
+    variance += Math.pow(c.close - avgClose, 2);
+  });
+  const stdDev = Math.sqrt(variance / candles.length);
+  const volatilityPct = avgClose > 0 ? Number(((stdDev / avgClose) * 100).toFixed(2)) : 0;
+
+  // Approximate ATR
+  let totalTr = 0;
+  for (let i = 1; i < candles.length; i++) {
+    const tr = Math.max(
+      candles[i].high - candles[i].low,
+      Math.abs(candles[i].high - candles[i - 1].close),
+      Math.abs(candles[i].low - candles[i - 1].close)
+    );
+    totalTr += tr;
+  }
+  const atr = candles.length > 1 ? Number((totalTr / (candles.length - 1)).toFixed(2)) : 0;
+
+  return {
+    high: Number(high.toFixed(2)),
+    low: Number(low.toFixed(2)),
+    avgClose: Number(avgClose.toFixed(2)),
+    avgVolume,
+    volatilityPct,
+    atr,
+  };
+}
+
+/**
+ * Fetches real historical OHLCV candles with optional custom range
  */
 export async function getHistoricalCandles(
   symbol: string,
   timeframe: ChartTimeframe,
-  limit: number = 60
+  limit: number = 60,
+  customRange?: string
 ): Promise<CandleData[]> {
   const cleanSymbol = symbol.replace(" 50", "50").toUpperCase();
   const conf = SYMBOL_CONFIGS[cleanSymbol] || SYMBOL_CONFIGS[symbol] || {
@@ -178,7 +245,8 @@ export async function getHistoricalCandles(
         "1D": "1d",
       };
       const interval = intervalMap[timeframe] || "15m";
-      const url = `https://api.binance.com/api/v3/klines?symbol=${conf.ticker}&interval=${interval}&limit=${limit}`;
+      const fetchLimit = Math.min(limit, 1000);
+      const url = `https://api.binance.com/api/v3/klines?symbol=${conf.ticker}&interval=${interval}&limit=${fetchLimit}`;
       const res = await fetch(url, { next: { revalidate: 10 } });
       if (res.ok) {
         const rows = await res.json();
@@ -206,13 +274,13 @@ export async function getHistoricalCandles(
   } else {
     try {
       const intervalMap: Record<ChartTimeframe, [string, string]> = {
-        "1m": ["1m", "1d"],
-        "5m": ["5m", "1d"],
-        "15m": ["15m", "5d"],
-        "1h": ["1h", "1mo"],
-        "1D": ["1d", "3mo"],
+        "1m": ["1m", customRange || "1d"],
+        "5m": ["5m", customRange || "5d"],
+        "15m": ["15m", customRange || "1mo"],
+        "1h": ["1h", customRange || "3mo"],
+        "1D": ["1d", customRange || "1y"],
       };
-      const [interval, range] = intervalMap[timeframe] || ["15m", "5d"];
+      const [interval, range] = intervalMap[timeframe] || ["15m", customRange || "1mo"];
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(conf.ticker)}?interval=${interval}&range=${range}`;
       const res = await fetch(url, { headers: YAHOO_HEADERS, next: { revalidate: 15 } });
       if (res.ok) {

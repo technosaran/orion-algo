@@ -121,14 +121,14 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base font-semibold text-white tracking-wide">
-                Trade Log & Execution Ledger
+                Trade History
               </h3>
               <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[#131b2a] text-[#94a3b8] border border-[#1e293b]">
                 {trades.length} Executed
               </span>
             </div>
             <p className="text-xs text-[#64748b]">
-              Audited trade entry, exit targets, slippage, and net realized P&L
+              Trade entries, exits, fees, and realized P&L
             </p>
           </div>
         </div>

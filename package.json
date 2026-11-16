@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:backend": "cd backend && .venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --port 8000",
+    "dev:frontend": "next dev",
+    "test": "vitest run",
+    "test:backend": "cd backend && .venv\\Scripts\\python.exe tests_verification.py",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -26,6 +30,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "tailwindcss": "4.3.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   }
 }

@@ -316,3 +316,69 @@ export function calculateBollingerBands(
 
   return { upper, middle: sma, lower };
 }
+
+/**
+ * Calculates MACD (Moving Average Convergence Divergence)
+ */
+export function calculateMACD(
+  candles: CandleData[],
+  fastPeriod: number = 12,
+  slowPeriod: number = 26,
+  signalPeriod: number = 9
+): {
+  macdLine: (number | null)[];
+  signalLine: (number | null)[];
+  histogram: (number | null)[];
+} {
+  const fastEma = calculateEMA(candles, fastPeriod);
+  const slowEma = calculateEMA(candles, slowPeriod);
+
+  const macdLine: (number | null)[] = [];
+  for (let i = 0; i < candles.length; i++) {
+    const f = fastEma[i];
+    const s = slowEma[i];
+    if (f !== null && s !== null) {
+      macdLine.push(Number((f - s).toFixed(2)));
+    } else {
+      macdLine.push(null);
+    }
+  }
+
+  // Calculate signal line as EMA of macdLine
+  const validMacdValues = macdLine.filter((v): v is number => v !== null);
+  const signalLine: (number | null)[] = [];
+  const histogram: (number | null)[] = [];
+
+  const k = 2 / (signalPeriod + 1);
+  let prevSignal: number | null = null;
+  let validIdx = 0;
+
+  for (let i = 0; i < candles.length; i++) {
+    const m = macdLine[i];
+    if (m === null) {
+      signalLine.push(null);
+      histogram.push(null);
+    } else {
+      if (validIdx < signalPeriod - 1) {
+        signalLine.push(null);
+        histogram.push(null);
+      } else if (validIdx === signalPeriod - 1) {
+        let sum = 0;
+        for (let j = 0; j < signalPeriod; j++) {
+          sum += validMacdValues[validIdx - j];
+        }
+        prevSignal = sum / signalPeriod;
+        signalLine.push(Number(prevSignal.toFixed(2)));
+        histogram.push(Number((m - prevSignal).toFixed(2)));
+      } else {
+        const curSignal: number = (m as number) * k + (prevSignal as number) * (1 - k);
+        prevSignal = curSignal;
+        signalLine.push(Number(curSignal.toFixed(2)));
+        histogram.push(Number(((m as number) - curSignal).toFixed(2)));
+      }
+      validIdx++;
+    }
+  }
+
+  return { macdLine, signalLine, histogram };
+}

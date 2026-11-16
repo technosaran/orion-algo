@@ -7,7 +7,16 @@ import {
   SymbolDefinition,
   TradeRecord,
 } from "./types";
-import { saveLabBacktestToDb } from "@/lib/strategies-service";
+import { validateCandles } from "./nseValidation";
+
+async function persistBacktestResult(config: BacktestConfig, result: BacktestResult) {
+  try {
+    const { saveLabBacktestToDb } = await import("@/lib/strategies-service");
+    await saveLabBacktestToDb(config, result);
+  } catch {
+    // Graceful fallback if database is unavailable or during headless testing
+  }
+}
 
 export const AVAILABLE_STRATEGIES: StrategyDefinition[] = [
   {
@@ -23,7 +32,7 @@ export const AVAILABLE_STRATEGIES: StrategyDefinition[] = [
   {
     id: "ema_crossover",
     name: "EMA Momentum Scalper",
-    description: "Fast-reacting exponential moving average crossover optimized for momentum swings.",
+    description: "Exponential moving average crossover strategy using fast and slow periods.",
     category: "Trend Following",
     params: [
       { key: "fast_period", label: "Fast EMA Period", type: "number", default: 9, min: 2, max: 50, step: 1 },
@@ -33,7 +42,7 @@ export const AVAILABLE_STRATEGIES: StrategyDefinition[] = [
   {
     id: "rsi_momentum",
     name: "RSI Mean Reversion",
-    description: "Statistical oscillator strategy buying oversold bottoms and offloading at overbought exhaustion.",
+    description: "Momentum oscillator strategy buying when oversold and exiting when overbought.",
     category: "Mean Reversion",
     params: [
       { key: "rsi_period", label: "RSI Period", type: "number", default: 14, min: 2, max: 50, step: 1 },
@@ -44,7 +53,7 @@ export const AVAILABLE_STRATEGIES: StrategyDefinition[] = [
   {
     id: "macd_trend",
     name: "MACD Trend Divergence",
-    description: "Dual moving average convergence-divergence strategy riding histogram acceleration.",
+    description: "Moving average convergence-divergence strategy using MACD line and signal crossovers.",
     category: "Momentum",
     params: [
       { key: "fast_period", label: "Fast EMA", type: "number", default: 12, min: 2, max: 50, step: 1 },
@@ -55,7 +64,7 @@ export const AVAILABLE_STRATEGIES: StrategyDefinition[] = [
   {
     id: "bollinger_bands",
     name: "Bollinger Bands Volatility Bounce",
-    description: "Dynamic standard deviation bands identifying extreme price contractions and expansions.",
+    description: "Trades price bounces from upper and lower standard deviation bands.",
     category: "Volatility",
     params: [
       { key: "bb_period", label: "Period", type: "number", default: 20, min: 5, max: 100, step: 1 },
@@ -92,7 +101,7 @@ export const STRATEGY_PRESETS: PresetStrategy[] = [
   {
     id: "preset_golden_cross",
     title: "Nifty Golden Cross (50/200)",
-    subtitle: "Institutional Macro Trend Following",
+    subtitle: "Long-term trend following",
     tag: "High Win Rate",
     config: {
       strategy: "sma_crossover",
@@ -103,14 +112,14 @@ export const STRATEGY_PRESETS: PresetStrategy[] = [
       leverage: 1.0,
       stopLossPct: 2.5,
       takeProfitPct: 8.0,
-      trailingStopPct: 2.0,
+      trailingStopPct: null, // Trailing stop is OFF by default
       strategyParams: { fast_period: 20, slow_period: 50 },
     },
   },
   {
     id: "preset_rsi_dip",
-    title: "BankNifty RSI Dip Sniper",
-    subtitle: "High-probability oversold bounces",
+    title: "BankNifty RSI Dip Reversal",
+    subtitle: "Oversold bounce signals",
     tag: "Mean Reversion",
     config: {
       strategy: "rsi_momentum",
@@ -121,14 +130,14 @@ export const STRATEGY_PRESETS: PresetStrategy[] = [
       leverage: 1.0,
       stopLossPct: 1.5,
       takeProfitPct: 4.5,
-      trailingStopPct: 1.2,
+      trailingStopPct: null, // Trailing stop is OFF by default
       strategyParams: { rsi_period: 14, oversold: 30, overbought: 70 },
     },
   },
   {
     id: "preset_ema_scalp",
     title: "Reliance EMA 9/21 Scalper",
-    subtitle: "Aggressive intra-day trend continuation",
+    subtitle: "Intraday trend continuation",
     tag: "Day Trading",
     config: {
       strategy: "ema_crossover",
@@ -139,14 +148,14 @@ export const STRATEGY_PRESETS: PresetStrategy[] = [
       leverage: 1.0,
       stopLossPct: 1.2,
       takeProfitPct: 3.2,
-      trailingStopPct: 1.0,
+      trailingStopPct: null, // Trailing stop is OFF by default
       strategyParams: { fast_period: 9, slow_period: 21 },
     },
   },
   {
     id: "preset_nifty_macd",
     title: "Nifty 50 MACD Wave",
-    subtitle: "Index trend rider with trailing protection",
+    subtitle: "Trend following with momentum",
     tag: "Index Momentum",
     config: {
       strategy: "macd_trend",
@@ -157,7 +166,7 @@ export const STRATEGY_PRESETS: PresetStrategy[] = [
       leverage: 1.0,
       stopLossPct: 1.5,
       takeProfitPct: 4.0,
-      trailingStopPct: 1.0,
+      trailingStopPct: null, // Trailing stop is OFF by default
       strategyParams: { fast_period: 12, slow_period: 26, signal_period: 9 },
     },
   },
@@ -181,7 +190,7 @@ function gaussianRandom(rng: () => number): number {
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-// Indicator math
+// Indicator math functions (Strictly backward-looking up to bar i)
 function calculateSMA(data: number[], period: number): (number | null)[] {
   const result: (number | null)[] = new Array(data.length).fill(null);
   if (data.length < period) return result;
@@ -298,19 +307,24 @@ function calculateMACD(data: number[], fast = 12, slow = 26, signal = 9) {
   return { macdLine, signalLine, hist };
 }
 
-interface Candle {
+export interface Candle {
   timestamp: string;
   open: number;
   high: number;
   low: number;
   close: number;
   volume: number;
+  isSynthetic?: boolean;
+  source?: string;
 }
 
 const TF_MINUTES: Record<string, number> = {
   "1m": 1,
+  "3m": 3,
   "5m": 5,
+  "10m": 10,
   "15m": 15,
+  "30m": 30,
   "1h": 60,
   "4h": 240,
   "1d": 1440,
@@ -368,32 +382,96 @@ function generateSyntheticCandles(
       low: Number(lowP.toFixed(2)),
       close: Number(closeP.toFixed(2)),
       volume: Number(volAmt.toFixed(1)),
+      isSynthetic: true,
+      source: "SYNTHETIC",
     });
     curClose = closeP;
   }
   return candles;
 }
 
+/**
+ * Runs the deterministic client-side backtesting simulation engine.
+ * Incorporates:
+ * 1. Strict No-Lookahead Bias: Signals generated at bar i close execute at bar i+1 open.
+ * 2. Conservative Intrabar SL/TP Tie Resolution: Stop Loss assumed first when both hit.
+ * 3. Exit Hierarchy: SL/TP -> Trailing Stop (configurable & off by default) -> Signal Exit -> End of Backtest.
+ * 4. ONE Source of Truth for P&L: sum(trades.pnl) === finalEquity - initialCapital === netProfit.
+ * 5. Mark-to-Market continuous equity curve tracking with unrealized P&L and fees.
+ * 6. NSE validation integration and synthetic source tagging.
+ */
 export function runClientBacktest(
   config: BacktestConfig,
-  providedCandles?: Candle[]
+  providedCandles?: Candle[] | any[]
 ): BacktestResult {
-  const candles =
-    providedCandles && providedCandles.length >= 10
-      ? providedCandles
-      : generateSyntheticCandles(
-          config.symbol,
-          config.timeframe,
-          config.dateRangeDays
-        );
+  let candles: Candle[];
+  let isSynthetic = false;
+  let dataSource = "REAL_MARKET_DATA";
 
-  const closes = candles.map((c) => c.close);
-  const highs = candles.map((c) => c.high);
-  const lows = candles.map((c) => c.low);
-  const timestamps = candles.map((c) => c.timestamp);
+  if (providedCandles && providedCandles.length >= 2) {
+    // Validate through Phase 1 NSE validation
+    const validation = validateCandles(providedCandles, {
+      allowWeekend: true,
+      allowOutsideMarketHours: true,
+      allowHolidays: true,
+    });
+    candles =
+      validation.sanitizedCandles && validation.sanitizedCandles.length >= 2
+        ? validation.sanitizedCandles
+        : providedCandles;
 
+    // Detect whether candles are synthetic
+    const first: any = providedCandles[0];
+    if (
+      first?.isSynthetic === true ||
+      first?.synthetic === true ||
+      (typeof first?.source === "string" &&
+        first.source.toUpperCase().includes("SYNTHETIC")) ||
+      (candles.length >= 2 &&
+        candles[0].open === candles[0].close &&
+        candles[0].high === candles[0].low)
+    ) {
+      isSynthetic = true;
+      dataSource = "SYNTHETIC";
+    } else {
+      isSynthetic = false;
+      dataSource = first?.source || "REAL_MARKET_DATA";
+    }
+  } else {
+    // Generate synthetic candles and validate
+    candles = generateSyntheticCandles(
+      config.symbol,
+      config.timeframe,
+      config.dateRangeDays
+    );
+    isSynthetic = true;
+    dataSource = "SYNTHETIC";
+
+    const validation = validateCandles(candles, {
+      allowWeekend: true,
+      allowOutsideMarketHours: true,
+      allowHolidays: true,
+      isSynthetic: true,
+      tagSynthetic: true,
+    });
+    if (validation.sanitizedCandles && validation.sanitizedCandles.length >= 2) {
+      candles = validation.sanitizedCandles;
+    }
+  }
+
+  const opens = candles.map((c) => Number(c.open));
+  const closes = candles.map((c) => Number(c.close));
+  const highs = candles.map((c) => Number(c.high));
+  const lows = candles.map((c) => Number(c.low));
+  const timestamps = candles.map((c) =>
+    typeof c.timestamp === "number"
+      ? new Date(c.timestamp).toISOString()
+      : String(c.timestamp)
+  );
+
+  // Generate strategy signals strictly using information up to closed bar i
   const signals: number[] = new Array(candles.length).fill(0);
-  const p = config.strategyParams;
+  const p = config.strategyParams || {};
 
   if (config.strategy === "sma_crossover") {
     const fastP = Number(p.fast_period || 20);
@@ -409,9 +487,9 @@ export function runClientBacktest(
         slowMA[i - 1] !== null
       ) {
         if (fastMA[i - 1]! <= slowMA[i - 1]! && fastMA[i]! > slowMA[i]!) {
-          signals[i] = 1; // Long
+          signals[i] = 1; // Long Entry Signal
         } else if (fastMA[i - 1]! >= slowMA[i - 1]! && fastMA[i]! < slowMA[i]!) {
-          signals[i] = -1; // Exit
+          signals[i] = -1; // Exit Signal
         }
       }
     }
@@ -486,21 +564,49 @@ export function runClientBacktest(
     }
   }
 
-  // Backtest loop
+  // Account & Execution State
   const initialCap = config.initialCapital;
   let currentCash = initialCap;
-  let currentEquity = initialCap;
   let peakEquity = initialCap;
 
-  const slippageRate = (config.slippagePct || 0.05) / 100;
-  const feeRate = (config.feePct || 0.075) / 100;
+  const slippageRate = (config.slippagePct || 0) / 100;
+  const feeRate = (config.feePct || 0) / 100;
   const leverage = Math.max(1.0, config.leverage || 1.0);
+  const pctAlloc =
+    typeof p.pctAlloc === "number"
+      ? Math.min(1.0, Math.max(0.1, Number(p.pctAlloc)))
+      : 0.95;
 
-  const trades: TradeRecord[] = [];
-  const equityCurve: EquityPoint[] = [];
-  let tradeId = 1;
+  // Trailing stop is configurable and OFF by default (null or <= 0)
+  const isTrailingStopEnabled =
+    config.trailingStopPct !== null &&
+    config.trailingStopPct !== undefined &&
+    !isNaN(Number(config.trailingStopPct)) &&
+    Number(config.trailingStopPct) > 0;
+  const trailingStopPct = isTrailingStopEnabled
+    ? Number(config.trailingStopPct)
+    : null;
+
+  const isStopLossEnabled =
+    config.stopLossPct !== null &&
+    config.stopLossPct !== undefined &&
+    !isNaN(Number(config.stopLossPct)) &&
+    Number(config.stopLossPct) > 0;
+  const stopLossPct = isStopLossEnabled ? Number(config.stopLossPct) : null;
+
+  const isTakeProfitEnabled =
+    config.takeProfitPct !== null &&
+    config.takeProfitPct !== undefined &&
+    !isNaN(Number(config.takeProfitPct)) &&
+    Number(config.takeProfitPct) > 0;
+  const takeProfitPct = isTakeProfitEnabled
+    ? Number(config.takeProfitPct)
+    : null;
 
   interface OpenPosition {
+    id: number;
+    symbol: string;
+    type: "LONG" | "SHORT";
     entryTime: string;
     entryPrice: number;
     size: number;
@@ -508,120 +614,182 @@ export function runClientBacktest(
     entryFee: number;
     entryBar: number;
     highestPrice: number;
+    lowestPrice: number;
   }
-  let activePos: OpenPosition | null = null;
-  const benchmarkBase = closes[0];
 
+  let activePos: OpenPosition | null = null;
+  let pendingSignal: { type: "LONG"; barIndex: number } | null = null;
+  let tradeId = 1;
+
+  const trades: TradeRecord[] = [];
+  const equityCurve: EquityPoint[] = [];
+  const benchmarkBase = closes[0] || 1;
+
+  // Bar-by-bar Execution Engine Loop
   for (let i = 0; i < candles.length; i++) {
-    const closeP = closes[i];
+    const openP = opens[i];
     const highP = highs[i];
     const lowP = lows[i];
+    const closeP = closes[i];
     const timeStr = timestamps[i];
 
-    // Check open trade exits
-    if (activePos) {
-      activePos.highestPrice = Math.max(activePos.highestPrice, highP);
-      let exitReason: TradeRecord["exitReason"] | null = null;
-      let exitPrice: number | null = null;
+    // -------------------------------------------------------------------------
+    // 1. NO LOOKAHEAD BIAS: Execute Pending Entry at Bar i OPEN with Slippage
+    // -------------------------------------------------------------------------
+    if (!activePos && pendingSignal && pendingSignal.type === "LONG") {
+      const effEntry = openP * (1.0 + slippageRate);
+      const alloc = currentCash * pctAlloc;
 
-      // 1. Stop Loss
-      if (config.stopLossPct) {
-        const slPrice =
-          activePos.entryPrice * (1.0 - (config.stopLossPct / 100) / leverage);
-        if (lowP <= slPrice) {
-          exitReason = "Stop Loss";
-          exitPrice = slPrice * (1.0 - slippageRate);
-        }
-      }
+      if (alloc > 50) {
+        const invested = alloc;
+        const size = (invested * leverage) / effEntry;
+        const entryFee = size * effEntry * feeRate;
 
-      // 2. Take Profit
-      if (!exitReason && config.takeProfitPct) {
-        const tpPrice =
-          activePos.entryPrice * (1.0 + (config.takeProfitPct / 100) / leverage);
-        if (highP >= tpPrice) {
-          exitReason = "Take Profit";
-          exitPrice = tpPrice * (1.0 - slippageRate);
-        }
-      }
+        // Deduct invested capital from cash.
+        // Entry fee is deducted in trade.pnl on exit to prevent double deduction.
+        currentCash -= invested;
 
-      // 3. Trailing Stop
-      if (!exitReason && config.trailingStopPct) {
-        const trailPrice =
-          activePos.highestPrice * (1.0 - config.trailingStopPct / 100);
-        if (lowP <= trailPrice && trailPrice > activePos.entryPrice) {
-          exitReason = "Trailing Stop";
-          exitPrice = trailPrice * (1.0 - slippageRate);
-        }
-      }
-
-      // 4. Signal Exit
-      if (!exitReason && signals[i] === -1) {
-        exitReason = "Signal Exit";
-        exitPrice = closeP * (1.0 - slippageRate);
-      }
-
-      if (exitReason && exitPrice) {
-        const grossExit = activePos.size * exitPrice;
-        const exitFee = grossExit * feeRate;
-        const totalFees = activePos.entryFee + exitFee;
-        const pnl =
-          (exitPrice - activePos.entryPrice) * activePos.size * leverage -
-          totalFees;
-        const pnlPct = (pnl / activePos.invested) * 100;
-
-        currentCash += activePos.invested + pnl;
-
-        trades.push({
+        activePos = {
           id: tradeId++,
           symbol: config.symbol,
           type: "LONG",
+          entryTime: timeStr,
+          entryPrice: effEntry,
+          size,
+          invested,
+          entryFee,
+          entryBar: i,
+          highestPrice: Math.max(effEntry, highP),
+          lowestPrice: Math.min(effEntry, lowP),
+        };
+      }
+      pendingSignal = null;
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. INTRABAR EXITS & EXIT HIERARCHY EVALUATION
+    // -------------------------------------------------------------------------
+    if (activePos) {
+      activePos.highestPrice = Math.max(activePos.highestPrice, highP);
+      activePos.lowestPrice = Math.min(activePos.lowestPrice, lowP);
+
+      let exitReason: TradeRecord["exitReason"] | null = null;
+      let rawExitPrice: number | null = null;
+
+      // 2a. Stop Loss & Take Profit Price Levels
+      const slPrice =
+        stopLossPct !== null
+          ? activePos.entryPrice * (1.0 - (stopLossPct / 100) / leverage)
+          : null;
+      const tpPrice =
+        takeProfitPct !== null
+          ? activePos.entryPrice * (1.0 + (takeProfitPct / 100) / leverage)
+          : null;
+
+      const hitSL = slPrice !== null && lowP <= slPrice;
+      const hitTP = tpPrice !== null && highP >= tpPrice;
+
+      // Conservative Tie-Resolution Rule:
+      // If both SL and TP fall within the same bar's High-Low range, assume Stop Loss hit first
+      if (hitSL && hitTP) {
+        exitReason = "Stop Loss";
+        rawExitPrice = slPrice;
+      } else if (hitSL) {
+        exitReason = "Stop Loss";
+        rawExitPrice = slPrice;
+      } else if (hitTP) {
+        exitReason = "Take Profit";
+        rawExitPrice = tpPrice;
+      }
+
+      // 2b. Trailing Stop (Configurable & OFF by default)
+      if (!exitReason && trailingStopPct !== null && trailingStopPct > 0) {
+        const trailPrice =
+          activePos.highestPrice * (1.0 - trailingStopPct / 100);
+        if (
+          lowP <= trailPrice &&
+          (stopLossPct === null || trailPrice > activePos.entryPrice)
+        ) {
+          exitReason = "Trailing Stop";
+          rawExitPrice = trailPrice;
+        }
+      }
+
+      // 2c. Signal Exit (Opposite crossover or strategy exit condition on closed bar i)
+      if (!exitReason && signals[i] === -1) {
+        exitReason = "Signal Exit";
+        rawExitPrice = closeP;
+      }
+
+      // 2d. End of Backtest (close any open trade at the final bar close)
+      if (!exitReason && i === candles.length - 1) {
+        exitReason = "End of Backtest";
+        rawExitPrice = closeP;
+      }
+
+      // -----------------------------------------------------------------------
+      // 2e. ONE SOURCE OF TRUTH FOR P&L (Cash & Trade Realization)
+      // -----------------------------------------------------------------------
+      if (exitReason && rawExitPrice !== null) {
+        const exitPrice = rawExitPrice * (1.0 - slippageRate);
+        const grossExit = activePos.size * exitPrice;
+        const exitFee = grossExit * feeRate;
+        const totalFees = activePos.entryFee + exitFee;
+
+        // Gross PnL
+        const grossPnl =
+          (exitPrice - activePos.entryPrice) * activePos.size;
+        const pnl = grossPnl - totalFees;
+        const pnlPct = (pnl / activePos.invested) * 100;
+
+        const roundedPnl = Number(pnl.toFixed(2));
+        const roundedFees = Number(totalFees.toFixed(2));
+
+        // Restore invested capital and add net trade P&L to account cash
+        currentCash += activePos.invested + roundedPnl;
+
+        trades.push({
+          id: activePos.id,
+          symbol: config.symbol,
+          type: activePos.type,
           entryTime: activePos.entryTime,
           exitTime: timeStr,
-          entryPrice: Number(activePos.entryPrice.toFixed(2)),
-          exitPrice: Number(exitPrice.toFixed(2)),
+          entryPrice: Number(activePos.entryPrice.toFixed(4)),
+          exitPrice: Number(exitPrice.toFixed(4)),
           size: Number(activePos.size.toFixed(4)),
           investedAmount: Number(activePos.invested.toFixed(2)),
-          pnl: Number(pnl.toFixed(2)),
+          pnl: roundedPnl,
           pnlPct: Number(pnlPct.toFixed(2)),
           exitReason,
-          feePaid: Number(totalFees.toFixed(2)),
-          durationBars: i - activePos.entryBar,
+          feePaid: roundedFees,
+          durationBars: Math.max(0, i - activePos.entryBar),
         });
 
         activePos = null;
       }
     }
 
-    // New Entry (executed on next bar open to eliminate look-ahead bias)
+    // -------------------------------------------------------------------------
+    // 3. NO LOOKAHEAD BIAS: Record Signal on Closed Bar i for Execution on Bar i+1
+    // -------------------------------------------------------------------------
     if (!activePos && signals[i] === 1 && i < candles.length - 1) {
-      const nextCandle = candles[i + 1];
-      const entryOpen = nextCandle ? nextCandle.open : closeP;
-      const alloc = currentCash * 0.95;
-      if (alloc > 50) {
-        const effEntry = entryOpen * (1.0 + slippageRate);
-        const entryFee = alloc * feeRate;
-        const invested = alloc - entryFee;
-        const size = (invested * leverage) / effEntry;
-        currentCash -= alloc;
-
-        activePos = {
-          entryTime: nextCandle ? nextCandle.timestamp : timeStr,
-          entryPrice: effEntry,
-          invested,
-          entryFee,
-          size,
-          entryBar: i + 1,
-          highestPrice: effEntry,
-        };
-      }
+      pendingSignal = { type: "LONG", barIndex: i };
     }
 
-    // Equity calculation
-    let unrealized = 0;
+    // -------------------------------------------------------------------------
+    // 4. MARK-TO-MARKET CONTINUOUS EQUITY CURVE
+    // -------------------------------------------------------------------------
+    let currentEquity: number;
     if (activePos) {
-      unrealized =
-        (closeP - activePos.entryPrice) * activePos.size * leverage;
-      currentEquity = currentCash + activePos.invested + unrealized;
+      // Position is active: compute unrealized P&L against bar close minus estimated exit costs
+      const estExitPrice = closeP * (1.0 - slippageRate);
+      const grossUnrealized =
+        (estExitPrice - activePos.entryPrice) * activePos.size;
+      const estExitFee = activePos.size * estExitPrice * feeRate;
+      const unrealizedPnl =
+        grossUnrealized - activePos.entryFee - estExitFee;
+
+      currentEquity = currentCash + activePos.invested + unrealizedPnl;
     } else {
       currentEquity = currentCash;
     }
@@ -639,39 +807,9 @@ export function runClientBacktest(
     });
   }
 
-  // Close at end of backtest if open
-  if (activePos) {
-    const finalClose = closes[closes.length - 1] * (1.0 - slippageRate);
-    const grossExit = activePos.size * finalClose;
-    const exitFee = grossExit * feeRate;
-    const totalFees = activePos.entryFee + exitFee;
-    const pnl =
-      (finalClose - activePos.entryPrice) * activePos.size * leverage -
-      totalFees;
-    const pnlPct = (pnl / activePos.invested) * 100;
-
-    currentCash += activePos.invested + pnl;
-
-    trades.push({
-      id: tradeId++,
-      symbol: config.symbol,
-      type: "LONG",
-      entryTime: activePos.entryTime,
-      exitTime: timestamps[timestamps.length - 1],
-      entryPrice: Number(activePos.entryPrice.toFixed(2)),
-      exitPrice: Number(finalClose.toFixed(2)),
-      size: Number(activePos.size.toFixed(4)),
-      investedAmount: Number(activePos.invested.toFixed(2)),
-      pnl: Number(pnl.toFixed(2)),
-      pnlPct: Number(pnlPct.toFixed(2)),
-      exitReason: "End of Backtest",
-      feePaid: Number(totalFees.toFixed(2)),
-      durationBars: candles.length - 1 - activePos.entryBar,
-    });
-    currentEquity = currentCash;
-  }
-
-  // Summary Metrics
+  // ---------------------------------------------------------------------------
+  // 5. SUMMARY METRICS & STATISTICAL AUDIT
+  // ---------------------------------------------------------------------------
   const totalTrades = trades.length;
   const winningTrades = trades.filter((t) => t.pnl > 0);
   const losingTrades = trades.filter((t) => t.pnl <= 0);
@@ -688,15 +826,31 @@ export function runClientBacktest(
       ? 99.0
       : 0;
 
-  const netProfit = currentEquity - initialCap;
-  const netProfitPct = (netProfit / initialCap) * 100;
-  const benchmarkReturnPct =
-    ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100;
-  const alpha = netProfitPct - benchmarkReturnPct;
+  // Single source of truth: finalEquity is currentCash (all trades exited)
+  const finalEquity = Number(currentCash.toFixed(2));
+  const netProfit = Number((finalEquity - initialCap).toFixed(2));
+  const netProfitPct = Number(((netProfit / initialCap) * 100).toFixed(2));
+  const benchmarkReturnPct = Number(
+    (((closes[closes.length - 1] - closes[0]) / closes[0]) * 100).toFixed(2)
+  );
+  const alpha = Number((netProfitPct - benchmarkReturnPct).toFixed(2));
 
-  const maxDrawdownPct = Math.max(...equityCurve.map((e) => e.drawdownPct), 0);
-  const maxDrawdownAmount = (maxDrawdownPct / 100) * peakEquity;
+  // Max Drawdown calculation from the continuous mark-to-market equity curve
+  let maxDdPct = 0;
+  let maxDdAmt = 0;
+  let runningPeak = initialCap;
 
+  for (const pt of equityCurve) {
+    if (pt.equity > runningPeak) {
+      runningPeak = pt.equity;
+    }
+    const curDdAmt = runningPeak - pt.equity;
+    const curDdPct = runningPeak > 0 ? (curDdAmt / runningPeak) * 100 : 0;
+    if (curDdPct > maxDdPct) maxDdPct = curDdPct;
+    if (curDdAmt > maxDdAmt) maxDdAmt = curDdAmt;
+  }
+
+  // Risk-adjusted metrics (Sharpe & Sortino)
   const dailyReturns: number[] = [];
   for (let k = 1; k < equityCurve.length; k++) {
     const prev = equityCurve[k - 1].equity;
@@ -748,7 +902,9 @@ export function runClientBacktest(
     }
   }
 
-  const totalFeesPaid = trades.reduce((acc, t) => acc + t.feePaid, 0);
+  const totalFeesPaid = Number(
+    trades.reduce((acc, t) => acc + t.feePaid, 0).toFixed(2)
+  );
   const expectancy =
     totalTrades > 0
       ? (winRate / 100) * avgWin - ((100 - winRate) / 100) * avgLoss
@@ -757,7 +913,7 @@ export function runClientBacktest(
   // Monthly breakdown
   const monthlyBuckets: Record<string, number[]> = {};
   for (const pt of equityCurve) {
-    const ym = pt.timestamp.substring(0, 7);
+    const ym = String(pt.timestamp).substring(0, 7);
     if (!monthlyBuckets[ym]) monthlyBuckets[ym] = [];
     monthlyBuckets[ym].push(pt.equity);
   }
@@ -775,18 +931,18 @@ export function runClientBacktest(
 
   const summary: BacktestSummary = {
     initialCapital: Number(initialCap.toFixed(2)),
-    finalEquity: Number(currentEquity.toFixed(2)),
-    netProfit: Number(netProfit.toFixed(2)),
-    netProfitPct: Number(netProfitPct.toFixed(2)),
-    benchmarkReturnPct: Number(benchmarkReturnPct.toFixed(2)),
-    alpha: Number(alpha.toFixed(2)),
+    finalEquity,
+    netProfit,
+    netProfitPct,
+    benchmarkReturnPct,
+    alpha,
     totalTrades,
     winningTrades: winCount,
     losingTrades: lossCount,
     winRatePct: Number(winRate.toFixed(2)),
     profitFactor: Number(Math.min(profitFactor, 99.9).toFixed(2)),
-    maxDrawdownPct: Number(maxDrawdownPct.toFixed(2)),
-    maxDrawdownAmount: Number(maxDrawdownAmount.toFixed(2)),
+    maxDrawdownPct: Number(maxDdPct.toFixed(2)),
+    maxDrawdownAmount: Number(maxDdAmt.toFixed(2)),
     sharpeRatio: Number(sharpe.toFixed(2)),
     sortinoRatio: Number(sortino.toFixed(2)),
     avgTradePnl: Number(avgTradePnl.toFixed(2)),
@@ -795,8 +951,10 @@ export function runClientBacktest(
     winLossRatio: Number(winLossRatio.toFixed(2)),
     maxConsecutiveWins: maxWinStreak,
     maxConsecutiveLosses: maxLossStreak,
-    totalFeesPaid: Number(totalFeesPaid.toFixed(2)),
+    totalFeesPaid,
     expectancy: Number(expectancy.toFixed(2)),
+    dataSource,
+    isSynthetic,
   };
 
   return {
@@ -808,14 +966,20 @@ export function runClientBacktest(
     equityCurve,
     trades,
     monthlyReturns,
-    source: "client",
+    source: isSynthetic ? "client" : "real_market_data",
+    dataSource,
+    isSynthetic,
   };
 }
 
+/**
+ * Top-level backtest orchestrator with Kite connect and real market data integration.
+ */
 export async function runServerOrClientBacktest(
   config: BacktestConfig,
   preferServer = false
 ): Promise<BacktestResult> {
+  // Option 1: Fast API / Orion Python Backend
   if (preferServer) {
     try {
       const apiUrl =
@@ -867,12 +1031,14 @@ export async function runServerOrClientBacktest(
             maxConsecutiveLosses: data.summary.max_consecutive_losses,
             totalFeesPaid: data.summary.total_fees_paid,
             expectancy: data.summary.expectancy,
+            dataSource: data.summary.data_source || "SERVER",
+            isSynthetic: Boolean(data.summary.is_synthetic),
           },
-          equityCurve: data.equity_curve.map((p: any) => ({
-            timestamp: p.timestamp,
-            equity: p.equity,
-            benchmark: p.benchmark,
-            drawdownPct: p.drawdown_pct,
+          equityCurve: data.equity_curve.map((pt: any) => ({
+            timestamp: pt.timestamp,
+            equity: pt.equity,
+            benchmark: pt.benchmark,
+            drawdownPct: pt.drawdown_pct,
           })),
           trades: data.trades.map((t: any) => ({
             id: t.id,
@@ -892,18 +1058,42 @@ export async function runServerOrClientBacktest(
           })),
           monthlyReturns: data.monthly_returns || {},
           source: "server",
+          dataSource: data.data_source || "SERVER",
+          isSynthetic: Boolean(data.is_synthetic),
         };
 
         // Persist to Supabase Database
-        await saveLabBacktestToDb(config, serverResult);
+        await persistBacktestResult(config, serverResult);
         return serverResult;
       }
     } catch {
-      // Fallback silently to real market data client simulation
+      // Fallback to local execution
     }
   }
 
-  // Fetch real historical candles from our market data API (100% Real Market Data)
+  // Option 2: Kite Connect historical market data service
+  try {
+    const { kiteDataService } = await import("./kiteDataService");
+    const kiteCandles = await kiteDataService.getCandles(
+      config.symbol,
+      config.timeframe as any
+    );
+    if (kiteCandles && Array.isArray(kiteCandles) && kiteCandles.length >= 10) {
+      const result = runClientBacktest(config, kiteCandles);
+      result.source = "kite";
+      result.dataSource = "KITE";
+      result.isSynthetic = false;
+      result.summary.dataSource = "KITE";
+      result.summary.isSynthetic = false;
+
+      await persistBacktestResult(config, result);
+      return result;
+    }
+  } catch {
+    // Fallback to market data API route
+  }
+
+  // Option 3: Real historical candles from Next.js API route
   try {
     const encSymbol = encodeURIComponent(config.symbol);
     const res = await fetch(
@@ -919,13 +1109,18 @@ export async function runServerOrClientBacktest(
           low: c.low,
           close: c.close,
           volume: c.volume,
+          isSynthetic: false,
+          source: "REAL_MARKET_DATA",
         }));
 
         const result = runClientBacktest(config, realCandles);
-        result.source = "real_market_data" as any;
+        result.source = "real_market_data";
+        result.dataSource = "REAL_MARKET_DATA";
+        result.isSynthetic = false;
+        result.summary.dataSource = "REAL_MARKET_DATA";
+        result.summary.isSynthetic = false;
 
-        // Auto-save to Supabase Cloud Database
-        await saveLabBacktestToDb(config, result);
+        await persistBacktestResult(config, result);
         return result;
       }
     }
@@ -933,7 +1128,8 @@ export async function runServerOrClientBacktest(
     console.warn("Could not fetch real historical candles for backtest, using baseline:", err);
   }
 
+  // Option 4: Client deterministic synthetic backtest
   const fallbackResult = runClientBacktest(config);
-  await saveLabBacktestToDb(config, fallbackResult);
+  await persistBacktestResult(config, fallbackResult);
   return fallbackResult;
 }

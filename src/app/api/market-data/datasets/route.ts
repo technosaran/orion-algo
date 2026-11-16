@@ -1,0 +1,205 @@
+import { NextRequest, NextResponse } from "next/server";
+import fs from "fs/promises";
+import path from "path";
+import { StoredDataset } from "@/types/dataset";
+import { computeDatasetStats } from "@/lib/marketDataService";
+import { supabase } from "@/lib/supabase";
+
+const DATASETS_DIR = path.join(process.cwd(), "public", "datasets");
+const CATALOG_FILE = path.join(DATASETS_DIR, "catalog.json");
+
+async function ensureCatalog(): Promise<StoredDataset[]> {
+  try {
+    await fs.mkdir(DATASETS_DIR, { recursive: true });
+    const content = await fs.readFile(CATALOG_FILE, "utf-8");
+    return JSON.parse(content);
+  } catch {
+    return [];
+  }
+}
+
+async function saveCatalog(catalog: StoredDataset[]) {
+  await fs.mkdir(DATASETS_DIR, { recursive: true });
+  await fs.writeFile(CATALOG_FILE, JSON.stringify(catalog, null, 2), "utf-8");
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (id) {
+      // Return single full dataset
+      const filePath = path.join(DATASETS_DIR, `${id}.json`);
+      try {
+        const fileContent = await fs.readFile(filePath, "utf-8");
+        const dataset = JSON.parse(fileContent);
+        return NextResponse.json({ status: "success", dataset });
+      } catch {
+        // Fallback to Supabase if not on disk
+        if (supabase) {
+          const { data, error } = await supabase
+            .from("market_datasets")
+            .select("*")
+            .eq("id", id)
+            .single();
+          if (data && !error) {
+            return NextResponse.json({ status: "success", dataset: data });
+          }
+        }
+        return NextResponse.json({ status: "error", message: "Dataset not found" }, { status: 404 });
+      }
+    }
+
+    // Return catalog list
+    const catalog = await ensureCatalog();
+    return NextResponse.json({
+      status: "success",
+      count: catalog.length,
+      datasets: catalog.map(({ candles, ...meta }) => ({
+        ...meta,
+        candlesSample: (candles || []).slice(0, 3),
+      })),
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { status: "error", message: err.message || "Failed to load datasets" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { symbol, name, category, source, timeframe, range, candles } = body;
+
+    if (!symbol || !candles || !Array.isArray(candles) || candles.length === 0) {
+      return NextResponse.json(
+        { status: "error", message: "Invalid payload: symbol and non-empty candles array required." },
+        { status: 400 }
+      );
+    }
+
+    const cleanSymbol = symbol.toUpperCase().replace(/\s+/g, "");
+    const cleanTf = timeframe || "15m";
+    const timestampNow = Date.now();
+    const id = body.id || `ds-${cleanSymbol.toLowerCase()}-${cleanTf}-${timestampNow}`;
+
+    const stats = body.stats || computeDatasetStats(candles);
+    const startDate = candles[0]?.time || new Date().toISOString();
+    const endDate = candles[candles.length - 1]?.time || new Date().toISOString();
+
+    const dataset: StoredDataset = {
+      id,
+      symbol: cleanSymbol,
+      name: name || `${cleanSymbol} ${cleanTf} Dataset`,
+      category: category || "stock",
+      source: source || (cleanSymbol.includes("USDT") ? "binance" : "yahoo"),
+      timeframe: cleanTf,
+      range: range || "auto",
+      candleCount: candles.length,
+      startDate,
+      endDate,
+      candles,
+      stats,
+      createdAt: body.createdAt || timestampNow,
+      updatedAt: timestampNow,
+    };
+
+    // 1. Write full dataset to disk
+    await fs.mkdir(DATASETS_DIR, { recursive: true });
+    const datasetPath = path.join(DATASETS_DIR, `${id}.json`);
+    const datasetJson = JSON.stringify(dataset, null, 2);
+    await fs.writeFile(datasetPath, datasetJson, "utf-8");
+    dataset.sizeBytes = Buffer.byteLength(datasetJson);
+
+    // 2. Update catalog
+    const catalog = await ensureCatalog();
+    const filteredCatalog = catalog.filter((d) => d.id !== id);
+    // store metadata in catalog
+    const metadataOnly: StoredDataset = {
+      ...dataset,
+      candles: [], // keep catalog lean
+    };
+    await saveCatalog([metadataOnly, ...filteredCatalog]);
+
+    // 3. Sync to Supabase in background
+    if (supabase) {
+      try {
+        await supabase
+          .from("market_datasets")
+          .upsert({
+            id: dataset.id,
+            symbol: dataset.symbol,
+            name: dataset.name,
+            timeframe: dataset.timeframe,
+            category: dataset.category,
+            source: dataset.source,
+            candle_count: dataset.candleCount,
+            start_date: new Date(candles[0].timestamp || Date.now()).toISOString(),
+            end_date: new Date(candles[candles.length - 1].timestamp || Date.now()).toISOString(),
+            candles: dataset.candles,
+            stats: dataset.stats,
+            updated_at: new Date().toISOString(),
+          });
+      } catch (err) {
+        console.warn("Supabase dataset upsert note:", err);
+      }
+    }
+
+    return NextResponse.json({
+      status: "success",
+      message: `Dataset "${dataset.name}" stored successfully (${dataset.candleCount} candles).`,
+      dataset: {
+        id: dataset.id,
+        symbol: dataset.symbol,
+        name: dataset.name,
+        timeframe: dataset.timeframe,
+        candleCount: dataset.candleCount,
+        stats: dataset.stats,
+      },
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { status: "error", message: err.message || "Failed to save dataset" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ status: "error", message: "Dataset ID is required" }, { status: 400 });
+    }
+
+    // 1. Remove from disk
+    const filePath = path.join(DATASETS_DIR, `${id}.json`);
+    try {
+      await fs.unlink(filePath);
+    } catch {}
+
+    // 2. Remove from catalog
+    const catalog = await ensureCatalog();
+    const updated = catalog.filter((d) => d.id !== id);
+    await saveCatalog(updated);
+
+    // 3. Remove from Supabase
+    if (supabase) {
+      try {
+        await supabase.from("market_datasets").delete().eq("id", id);
+      } catch {}
+    }
+
+    return NextResponse.json({ status: "success", message: `Dataset #${id} deleted.` });
+  } catch (err: any) {
+    return NextResponse.json(
+      { status: "error", message: err.message || "Failed to delete dataset" },
+      { status: 500 }
+    );
+  }
+}

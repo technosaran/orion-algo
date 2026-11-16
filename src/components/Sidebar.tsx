@@ -10,8 +10,9 @@ import {
   TrendingUp,
   Sliders,
   FlaskConical,
-  Bot,
   CandlestickChart,
+  Database,
+  ShieldAlert,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -43,6 +44,18 @@ export function Sidebar() {
       icon: CandlestickChart,
       active: pathname.startsWith("/paper-trading"),
     },
+    {
+      href: "/live-trading",
+      label: "Live Trading & RMS",
+      icon: ShieldAlert,
+      active: pathname.startsWith("/live-trading"),
+    },
+    {
+      href: "/data",
+      label: "Market Data & Datasets",
+      icon: Database,
+      active: pathname.startsWith("/data"),
+    },
   ];
 
   return (
@@ -60,7 +73,7 @@ export function Sidebar() {
             </div>
             <div>
               <span className="font-bold text-white text-base tracking-wide">
-                ORION ALGO
+                AlgoX
               </span>
             </div>
           </div>

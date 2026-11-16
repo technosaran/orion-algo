@@ -33,9 +33,9 @@ export function BacktestResultsSection({
           <Activity className="w-6 h-6 animate-pulse" />
         </div>
         <div className="space-y-1">
-          <h3 className="text-base font-semibold text-white">NSE / BSE Simulation Engine Ready</h3>
+          <h3 className="text-base font-semibold text-white">Simulation Ready</h3>
           <p className="text-xs text-[#94a3b8] max-w-md mx-auto">
-            Click &quot;Run Instant Backtest&quot; to simulate this strategy against historical tick/candle data with Indian brokerage (₹20/order) and STT charges.
+            Click &quot;Run Backtest&quot; to test this strategy against historical market data with brokerage and tax fees included.
           </p>
         </div>
         <button
@@ -44,7 +44,7 @@ export function BacktestResultsSection({
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition-all shadow-md shadow-emerald-500/20"
         >
           <BarChart3 className="w-4 h-4" />
-          <span>{isBacktesting ? "Simulating on Indian Markets..." : "Run Instant Backtest"}</span>
+          <span>{isBacktesting ? "Running Backtest..." : "Run Backtest"}</span>
         </button>
       </div>
     );
@@ -123,16 +123,16 @@ export function BacktestResultsSection({
             05
           </div>
           <div>
-            <h2 className="text-base font-semibold text-white">Backtest Analytics & P&L Verification (INR)</h2>
+            <h2 className="text-base font-semibold text-white">Backtest Results</h2>
             <p className="text-xs text-[#94a3b8]">
-              Verified performance metrics, equity trajectory vs Nifty benchmark, and trade logs for {strategyName}.
+              Performance metrics, equity curve vs benchmark, and trade history for {strategyName}.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono">
-            {metrics.totalTrades} Executed Orders
+            {metrics.totalTrades} Trades
           </span>
           <button
             onClick={onRunBacktest}

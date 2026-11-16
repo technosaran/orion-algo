@@ -1,0 +1,488 @@
+[
+  {
+    "date": "2024-01-22",
+    "name": "Special Holiday (Ayodhya Ram Mandir Pran Pratishtha)",
+    "day": "Monday",
+    "year": 2024,
+    "description": "Special trading holiday declared by NSE on the occasion of Ram Mandir Pran Pratishtha",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-01-26",
+    "name": "Republic Day",
+    "day": "Friday",
+    "year": 2024,
+    "description": "Republic Day",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-03-08",
+    "name": "Mahashivratri",
+    "day": "Friday",
+    "year": 2024,
+    "description": "Mahashivratri",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-03-25",
+    "name": "Holi",
+    "day": "Monday",
+    "year": 2024,
+    "description": "Holi",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-03-29",
+    "name": "Good Friday",
+    "day": "Friday",
+    "year": 2024,
+    "description": "Good Friday",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-04-11",
+    "name": "Id-Ul-Fitr (Ramzan Id)",
+    "day": "Thursday",
+    "year": 2024,
+    "description": "Id-Ul-Fitr (Ramzan Id)",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-04-14",
+    "name": "Dr. Baba Saheb Ambedkar Jayanti",
+    "day": "Sunday",
+    "year": 2024,
+    "description": "Dr. Baba Saheb Ambedkar Jayanti (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Sunday"
+  },
+  {
+    "date": "2024-04-17",
+    "name": "Shri Ram Navami",
+    "day": "Wednesday",
+    "year": 2024,
+    "description": "Shri Ram Navami",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-04-21",
+    "name": "Shri Mahavir Jayanti",
+    "day": "Sunday",
+    "year": 2024,
+    "description": "Shri Mahavir Jayanti (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Sunday"
+  },
+  {
+    "date": "2024-05-01",
+    "name": "Maharashtra Day",
+    "day": "Wednesday",
+    "year": 2024,
+    "description": "Maharashtra Day",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-05-20",
+    "name": "General Parliamentary Elections",
+    "day": "Monday",
+    "year": 2024,
+    "description": "General Parliamentary Elections (Mumbai Lok Sabha voting)",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-06-17",
+    "name": "Bakri Id (Id-Ul-Zuha)",
+    "day": "Monday",
+    "year": 2024,
+    "description": "Bakri Id",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-07-17",
+    "name": "Moharram",
+    "day": "Wednesday",
+    "year": 2024,
+    "description": "Moharram",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-08-15",
+    "name": "Independence Day / Parsi New Year",
+    "day": "Thursday",
+    "year": 2024,
+    "description": "Independence Day and Parsi New Year",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-09-07",
+    "name": "Ganesh Chaturthi",
+    "day": "Saturday",
+    "year": 2024,
+    "description": "Ganesh Chaturthi (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Saturday"
+  },
+  {
+    "date": "2024-10-02",
+    "name": "Mahatma Gandhi Jayanti",
+    "day": "Wednesday",
+    "year": 2024,
+    "description": "Mahatma Gandhi Jayanti",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-10-12",
+    "name": "Dussehra",
+    "day": "Saturday",
+    "year": 2024,
+    "description": "Dussehra (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Saturday"
+  },
+  {
+    "date": "2024-11-01",
+    "name": "Diwali Laxmi Pujan",
+    "day": "Friday",
+    "year": 2024,
+    "description": "Diwali Laxmi Pujan (Muhurat Trading session held in evening 18:00 to 19:00 IST; regular market hours closed)",
+    "isMuhuratTrading": true,
+    "note": "Special Muhurat Trading conducted 18:00 to 19:00 IST. Regular day trading closed."
+  },
+  {
+    "date": "2024-11-02",
+    "name": "Diwali Balipratipada",
+    "day": "Saturday",
+    "year": 2024,
+    "description": "Diwali Balipratipada (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Saturday"
+  },
+  {
+    "date": "2024-11-15",
+    "name": "Gurunanak Jayanti",
+    "day": "Friday",
+    "year": 2024,
+    "description": "Gurunanak Jayanti",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-11-20",
+    "name": "Maharashtra Assembly Elections",
+    "day": "Wednesday",
+    "year": 2024,
+    "description": "Maharashtra State Assembly General Elections",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2024-12-25",
+    "name": "Christmas",
+    "day": "Wednesday",
+    "year": 2024,
+    "description": "Christmas",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-01-26",
+    "name": "Republic Day",
+    "day": "Sunday",
+    "year": 2025,
+    "description": "Republic Day (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Sunday"
+  },
+  {
+    "date": "2025-02-26",
+    "name": "Mahashivratri",
+    "day": "Wednesday",
+    "year": 2025,
+    "description": "Mahashivratri",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-03-14",
+    "name": "Holi",
+    "day": "Friday",
+    "year": 2025,
+    "description": "Holi",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-03-31",
+    "name": "Id-Ul-Fitr (Ramzan Id)",
+    "day": "Monday",
+    "year": 2025,
+    "description": "Id-Ul-Fitr (Ramzan Id)",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-04-06",
+    "name": "Shri Ram Navami",
+    "day": "Sunday",
+    "year": 2025,
+    "description": "Shri Ram Navami (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Sunday"
+  },
+  {
+    "date": "2025-04-10",
+    "name": "Shri Mahavir Jayanti",
+    "day": "Thursday",
+    "year": 2025,
+    "description": "Shri Mahavir Jayanti",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-04-14",
+    "name": "Dr. Baba Saheb Ambedkar Jayanti",
+    "day": "Monday",
+    "year": 2025,
+    "description": "Dr. Baba Saheb Ambedkar Jayanti",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-04-18",
+    "name": "Good Friday",
+    "day": "Friday",
+    "year": 2025,
+    "description": "Good Friday",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-05-01",
+    "name": "Maharashtra Day",
+    "day": "Thursday",
+    "year": 2025,
+    "description": "Maharashtra Day",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-06-07",
+    "name": "Bakri Id (Id-Ul-Zuha)",
+    "day": "Saturday",
+    "year": 2025,
+    "description": "Bakri Id (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Saturday"
+  },
+  {
+    "date": "2025-07-06",
+    "name": "Moharram",
+    "day": "Sunday",
+    "year": 2025,
+    "description": "Moharram (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Sunday"
+  },
+  {
+    "date": "2025-08-15",
+    "name": "Independence Day",
+    "day": "Friday",
+    "year": 2025,
+    "description": "Independence Day",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-08-27",
+    "name": "Ganesh Chaturthi",
+    "day": "Wednesday",
+    "year": 2025,
+    "description": "Ganesh Chaturthi",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-10-02",
+    "name": "Mahatma Gandhi Jayanti / Dussehra",
+    "day": "Thursday",
+    "year": 2025,
+    "description": "Mahatma Gandhi Jayanti / Dussehra",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-10-21",
+    "name": "Diwali Laxmi Pujan",
+    "day": "Tuesday",
+    "year": 2025,
+    "description": "Diwali Laxmi Pujan (Muhurat Trading session held in evening; regular market hours closed)",
+    "isMuhuratTrading": true,
+    "note": "Special Muhurat Trading conducted in evening. Regular day trading closed."
+  },
+  {
+    "date": "2025-10-22",
+    "name": "Diwali Balipratipada",
+    "day": "Wednesday",
+    "year": 2025,
+    "description": "Diwali Balipratipada",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-11-05",
+    "name": "Gurunanak Jayanti",
+    "day": "Wednesday",
+    "year": 2025,
+    "description": "Prakash Gurpurb Sri Guru Nanak Dev Jayanti",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2025-12-25",
+    "name": "Christmas",
+    "day": "Thursday",
+    "year": 2025,
+    "description": "Christmas",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-01-26",
+    "name": "Republic Day",
+    "day": "Monday",
+    "year": 2026,
+    "description": "Republic Day",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-02-15",
+    "name": "Mahashivratri",
+    "day": "Sunday",
+    "year": 2026,
+    "description": "Mahashivratri (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Sunday"
+  },
+  {
+    "date": "2026-03-03",
+    "name": "Holi",
+    "day": "Tuesday",
+    "year": 2026,
+    "description": "Holi",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-03-20",
+    "name": "Id-Ul-Fitr (Ramzan Id)",
+    "day": "Friday",
+    "year": 2026,
+    "description": "Id-Ul-Fitr (Ramzan Id)",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-03-26",
+    "name": "Shri Ram Navami",
+    "day": "Thursday",
+    "year": 2026,
+    "description": "Shri Ram Navami",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-03-31",
+    "name": "Shri Mahavir Jayanti",
+    "day": "Tuesday",
+    "year": 2026,
+    "description": "Shri Mahavir Jayanti",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-04-03",
+    "name": "Good Friday",
+    "day": "Friday",
+    "year": 2026,
+    "description": "Good Friday",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-04-14",
+    "name": "Dr. Baba Saheb Ambedkar Jayanti",
+    "day": "Tuesday",
+    "year": 2026,
+    "description": "Dr. Baba Saheb Ambedkar Jayanti",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-05-01",
+    "name": "Maharashtra Day",
+    "day": "Friday",
+    "year": 2026,
+    "description": "Maharashtra Day",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-05-28",
+    "name": "Bakri Id (Id-Ul-Zuha)",
+    "day": "Thursday",
+    "year": 2026,
+    "description": "Bakri Id",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-06-26",
+    "name": "Muharram",
+    "day": "Friday",
+    "year": 2026,
+    "description": "Muharram",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-08-15",
+    "name": "Independence Day",
+    "day": "Saturday",
+    "year": 2026,
+    "description": "Independence Day (Weekend)",
+    "isMuhuratTrading": false,
+    "note": "Falls on a Saturday"
+  },
+  {
+    "date": "2026-09-14",
+    "name": "Ganesh Chaturthi",
+    "day": "Monday",
+    "year": 2026,
+    "description": "Ganesh Chaturthi",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-10-02",
+    "name": "Mahatma Gandhi Jayanti",
+    "day": "Friday",
+    "year": 2026,
+    "description": "Mahatma Gandhi Jayanti",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-10-20",
+    "name": "Dussehra",
+    "day": "Tuesday",
+    "year": 2026,
+    "description": "Dussehra",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-11-08",
+    "name": "Diwali Laxmi Pujan",
+    "day": "Sunday",
+    "year": 2026,
+    "description": "Diwali Laxmi Pujan (Muhurat trading note: special 1-hour Muhurat trading session conducted on Sunday evening; regular day trading closed)",
+    "isMuhuratTrading": true,
+    "note": "Special Muhurat Trading conducted Sunday evening. Regular day trading closed."
+  },
+  {
+    "date": "2026-11-10",
+    "name": "Diwali Balipratipada",
+    "day": "Tuesday",
+    "year": 2026,
+    "description": "Diwali Balipratipada",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-11-24",
+    "name": "Gurunanak Jayanti",
+    "day": "Tuesday",
+    "year": 2026,
+    "description": "Prakash Gurpurb Sri Guru Nanak Dev Jayanti",
+    "isMuhuratTrading": false
+  },
+  {
+    "date": "2026-12-25",
+    "name": "Christmas",
+    "day": "Friday",
+    "year": 2026,
+    "description": "Christmas",
+    "isMuhuratTrading": false
+  }
+]

@@ -7,9 +7,22 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api.v1.api import api_router
+from app.services.paper_matcher import process_paper_engine_tick
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("keep_alive")
+logger = logging.getLogger("orion_main")
+
+
+async def paper_engine_daemon_loop():
+    """Background engine loop running matching and algo evaluation every 5s."""
+    await asyncio.sleep(5)  # Initial grace delay
+    logger.info("Starting autonomous server-side paper trading daemon...")
+    while True:
+        try:
+            await process_paper_engine_tick()
+        except Exception as e:
+            logger.error(f"[Paper Daemon] Error during tick: {e}")
+        await asyncio.sleep(5)
 
 
 async def auto_ping_loop(base_url: str):
@@ -35,9 +48,16 @@ async def lifespan(app: FastAPI):
     if settings.RENDER_EXTERNAL_URL:
         logger.info(f"Render environment detected: {settings.RENDER_EXTERNAL_URL}")
         ping_task = asyncio.create_task(auto_ping_loop(settings.RENDER_EXTERNAL_URL))
+    
+    # Start autonomous paper trading engine daemon
+    paper_daemon_task = asyncio.create_task(paper_engine_daemon_loop())
+
     yield
+
     if ping_task:
         ping_task.cancel()
+    if paper_daemon_task:
+        paper_daemon_task.cancel()
 
 
 app = FastAPI(

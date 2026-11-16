@@ -5,16 +5,18 @@ import { ChartTimeframe } from "@/types/paperTrading";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const symbol = searchParams.get("symbol") || "NVDA";
+    const symbol = searchParams.get("symbol") || "NIFTY50";
     const timeframe = (searchParams.get("timeframe") || "15m") as ChartTimeframe;
-    const limit = parseInt(searchParams.get("limit") || "60", 10);
+    const limit = parseInt(searchParams.get("limit") || "100", 10);
+    const range = searchParams.get("range") || undefined;
 
-    const candles = await getHistoricalCandles(symbol, timeframe, limit);
+    const candles = await getHistoricalCandles(symbol, timeframe, limit, range);
 
     return NextResponse.json({
       status: "success",
       symbol,
       timeframe,
+      range: range || "auto",
       count: candles.length,
       candles,
       provider: symbol.includes("USDT") ? "Binance API" : "Yahoo Finance API",

@@ -63,7 +63,7 @@ export function MetricsSummaryCards({ summary }: MetricsSummaryCardsProps) {
               className={`font-mono text-[11px] ${
                 isAlphaPositive ? "text-cyan-400" : "text-[#94a3b8]"
               }`}
-              title="Alpha over buy & hold benchmark"
+              title="Alpha over benchmark"
             >
               α {isAlphaPositive ? "+" : ""}
               {summary.alpha.toFixed(1)}%

@@ -66,9 +66,9 @@ export function PositionSizingSection({
             04
           </div>
           <div>
-            <h2 className="text-base font-semibold text-white">Position Sizing & Indian Brokerage Model</h2>
+            <h2 className="text-base font-semibold text-white">Position Sizing & Fees</h2>
             <p className="text-xs text-[#94a3b8]">
-              Configure F&O lot sizing, capital allocation in INR (₹), Zerodha/Dhan flat brokerage, and statutory taxes.
+              Configure lot sizing, capital allocation, brokerage fees, and taxes.
             </p>
           </div>
         </div>
@@ -82,7 +82,7 @@ export function PositionSizingSection({
         <div className="space-y-2 lg:col-span-2">
           <label className="text-xs font-medium text-[#94a3b8] flex items-center gap-1.5">
             <PieChart className="w-3.5 h-3.5 text-emerald-400" />
-            Allocation Algorithm
+            Sizing Method
           </label>
           <div className="grid grid-cols-2 gap-2">
             {sizingOptions.map((opt) => (
@@ -213,7 +213,7 @@ export function PositionSizingSection({
           <label className="text-xs font-medium text-[#94a3b8] flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <Scale className="w-3.5 h-3.5 text-emerald-400" />
-              SEBI Margin Leverage
+              Margin Leverage
             </span>
             <span className="text-xs font-mono text-white font-bold">{config.maxLeverage}x</span>
           </label>
@@ -233,10 +233,10 @@ export function PositionSizingSection({
               </button>
             ))}
           </div>
-          <p className="text-[10px] text-[#64748b]">F&O intraday margin rules per SEBI guidelines.</p>
+          <p className="text-[10px] text-[#64748b]">Intraday margin multiplier.</p>
         </div>
 
-        {/* Indian Brokerage Model */}
+        {/* Brokerage Model */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-[#94a3b8] flex items-center gap-1.5">
             <Receipt className="w-3.5 h-3.5 text-emerald-400" />
@@ -252,10 +252,10 @@ export function PositionSizingSection({
               className="w-full bg-[#131b2a] border border-[#222e42] rounded-lg pl-7 pr-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500/50"
             />
           </div>
-          <p className="text-[10px] text-[#64748b]">Flat ₹20/order (Zerodha, Dhan, Angel One benchmark).</p>
+          <p className="text-[10px] text-[#64748b]">Flat ₹20 per executed order.</p>
         </div>
 
-        {/* Slippage & STT Tax */}
+        {/* Slippage & Taxes */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-[#94a3b8] flex items-center gap-1.5">
             <Percent className="w-3.5 h-3.5 text-emerald-400" />
@@ -272,7 +272,7 @@ export function PositionSizingSection({
             />
             <span className="absolute right-3 top-2 text-xs font-mono text-[#64748b]">%</span>
           </div>
-          <p className="text-[10px] text-[#64748b]">STT + Exchange turnover fee + GST.</p>
+          <p className="text-[10px] text-[#64748b]">Securities transaction tax and turnover charges.</p>
         </div>
       </div>
     </div>

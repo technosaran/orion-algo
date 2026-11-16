@@ -88,6 +88,16 @@ ASSET_PROFILES = {
     "SOL/USDT": {"base_price": 175.0, "annual_vol": 0.85, "drift": 0.35},
     "NIFTY50": {"base_price": 24200.0, "annual_vol": 0.16, "drift": 0.14},
     "BANKNIFTY": {"base_price": 51500.0, "annual_vol": 0.20, "drift": 0.16},
+    "SENSEX": {"base_price": 81500.0, "annual_vol": 0.15, "drift": 0.13},
+    "RELIANCE": {"base_price": 1340.0, "annual_vol": 0.22, "drift": 0.15},
+    "HDFCBANK": {"base_price": 1750.0, "annual_vol": 0.19, "drift": 0.12},
+    "TCS": {"base_price": 4150.0, "annual_vol": 0.18, "drift": 0.11},
+    "INFY": {"base_price": 1850.0, "annual_vol": 0.22, "drift": 0.13},
+    "ICICIBANK": {"base_price": 1280.0, "annual_vol": 0.21, "drift": 0.14},
+    "SBIN": {"base_price": 820.0, "annual_vol": 0.25, "drift": 0.16},
+    "TATAMOTORS": {"base_price": 810.0, "annual_vol": 0.30, "drift": 0.18},
+    "CRUDEOIL": {"base_price": 5850.0, "annual_vol": 0.32, "drift": 0.08},
+    "GOLD": {"base_price": 77500.0, "annual_vol": 0.14, "drift": 0.10},
     "AAPL": {"base_price": 225.0, "annual_vol": 0.24, "drift": 0.18},
     "TSLA": {"base_price": 245.0, "annual_vol": 0.52, "drift": 0.20},
     "NVDA": {"base_price": 138.0, "annual_vol": 0.48, "drift": 0.40},
@@ -283,7 +293,7 @@ def run_backtest_simulation(
     closes = [c["close"] for c in candles]
     highs = [c["high"] for c in candles]
     lows = [c["low"] for c in candles]
-    timestamps = [c["timestamp"] for c in candles]
+    timestamps = [str(c.get("time") or c.get("timestamp")) for c in candles]
 
     strategy = req.strategy.lower()
     p = req.strategy_params

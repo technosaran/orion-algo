@@ -4,7 +4,7 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
   {
     id: "template-nifty-vwap-supertrend",
     name: "NIFTY 50 Intraday VWAP + Supertrend (MIS)",
-    description: "High-probability NSE index momentum: Enters Long when Supertrend(10,3) turns green while NIFTY 50 trades firmly above intraday VWAP with confirming volume. Auto-squares off at 15:15 IST.",
+    description: "Enters Long when Supertrend(10,3) turns green and price trades above intraday VWAP. Auto square-off at 15:15 IST.",
     category: "momentum",
     assetClass: "nse_fno",
     symbol: "NIFTY 50",
@@ -89,7 +89,7 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
   {
     id: "template-banknifty-scalper",
     name: "BANKNIFTY 9/21 EMA Momentum Scalper (MIS)",
-    description: "High-beta intraday scalping: Fast 9-EMA cross above 21-EMA on 3-minute candles with RSI > 55 filter. Targets quick 150-300 point moves on Bank Nifty.",
+    description: "Enters when 9-EMA crosses above 21-EMA on 3-minute candles with RSI > 55 filter.",
     category: "scalping",
     assetClass: "nse_fno",
     symbol: "BANKNIFTY",
@@ -169,7 +169,7 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
   {
     id: "template-reliance-breakout",
     name: "RELIANCE 20-Period High Breakout + Volume (CNC/MIS)",
-    description: "Heavyweight momentum setup: Buys Reliance Industries on candle close breaking 20-period high when Volume exceeds 1.5x the 20-period Volume SMA.",
+    description: "Enters when price crosses above 20-period SMA with volume above 25,000.",
     category: "breakout",
     assetClass: "nse_equity",
     symbol: "RELIANCE",
@@ -248,8 +248,8 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
   },
   {
     id: "template-crudeoil-mcx",
-    name: "CRUDEOIL MCX Positional Evening Trend Rider (NRML)",
-    description: "Commodity supertrend trend-following strategy tailored for MCX Crude Oil during volatile US inventory and NYMEX overlapping evening sessions.",
+    name: "CRUDEOIL MCX Positional Trend Following (NRML)",
+    description: "Trend-following strategy for Crude Oil using Supertrend and RSI.",
     category: "trend",
     assetClass: "mcx_commodity",
     symbol: "CRUDEOIL",
@@ -329,7 +329,7 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
   {
     id: "template-nifty-golden-cross",
     name: "NIFTY 50 Golden Cross Macro Swing (NRML)",
-    description: "Institutional positional trend rider: Buys Nifty Futures when 50-EMA crosses above 200-EMA on 1-hour candles with confirming macro RSI momentum.",
+    description: "Enters when 50-EMA crosses above 200-EMA on 1-hour candles with RSI above 52.",
     category: "trend",
     assetClass: "nse_fno",
     symbol: "NIFTY 50",
@@ -401,6 +401,81 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
       slippagePct: 0.02,
       feePerOrder: 20,
       sttTaxPct: 0.0125,
+    },
+    status: "draft",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "template-nifty-920-straddle",
+    name: "NIFTY 9:20 AM Options Theta Scalp (MIS)",
+    description: "Systematic intraday options selling model capturing rapid morning volatility contraction and time decay (theta) with 25% SL per leg.",
+    category: "scalping",
+    assetClass: "nse_fno",
+    symbol: "NIFTY 50",
+    productType: "MIS",
+    currency: "INR",
+    timeframe: "1m",
+    direction: "both",
+    orderType: "market",
+    initialCapital: 300000, // ₹3,00,000 (3 Lakhs for margin)
+    entryGroups: [
+      {
+        id: "group-1",
+        logic: "AND",
+        conditions: [
+          {
+            id: "cond-1",
+            leftIndicator: {
+              id: "ind-rsi",
+              type: "RSI",
+              params: { period: 14 },
+              offset: 1,
+            },
+            operator: "greater_than",
+            compareType: "value",
+            rightValue: 45,
+          },
+          {
+            id: "cond-2",
+            leftIndicator: {
+              id: "ind-rsi2",
+              type: "RSI",
+              params: { period: 14 },
+              offset: 1,
+            },
+            operator: "less_than",
+            compareType: "value",
+            rightValue: 55,
+          },
+        ],
+      },
+    ],
+    customExitEnabled: false,
+    exitGroups: [],
+    riskManagement: {
+      stopLossType: "percentage",
+      stopLossValue: 25.0, // 25% stop loss on premium
+      takeProfitType: "percentage",
+      takeProfitValue: 50.0, // 50% profit target
+      useTrailingStop: true,
+      trailingStopActivation: 20.0,
+      trailingStopStep: 10.0,
+      intradaySquareOff: true,
+      squareOffTime: "15:10",
+      maxHoldingBars: 350,
+      maxDailyDrawdownPct: 2.0,
+      maxConsecutiveLosses: 2,
+    },
+    positionSizing: {
+      sizingType: "lots",
+      sizingValue: 2, // 2 lots
+      lotSize: 25,
+      maxOpenPositions: 2,
+      maxLeverage: 1,
+      slippagePct: 0.05,
+      feePerOrder: 20,
+      sttTaxPct: 0.0625, // Options sell STT
     },
     status: "draft",
     createdAt: new Date().toISOString(),

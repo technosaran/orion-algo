@@ -88,6 +88,8 @@ export interface BacktestSummary {
   maxConsecutiveLosses: number;
   totalFeesPaid: number;
   expectancy: number;
+  dataSource?: string;
+  isSynthetic?: boolean;
 }
 
 export interface BacktestResult {
@@ -99,5 +101,7 @@ export interface BacktestResult {
   equityCurve: EquityPoint[];
   trades: TradeRecord[];
   monthlyReturns: Record<string, number>;
-  source: "server" | "client";
+  source: "server" | "client" | "real_market_data" | "kite" | string;
+  dataSource?: string;
+  isSynthetic?: boolean;
 }

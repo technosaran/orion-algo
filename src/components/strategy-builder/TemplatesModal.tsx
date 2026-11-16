@@ -36,8 +36,8 @@ export function TemplatesModal({
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">NSE / BSE / MCX Strategy Presets</h3>
-              <p className="text-xs text-[#94a3b8]">Select a pre-engineered Indian quantitative model to populate all sections.</p>
+              <h3 className="text-base font-bold text-white">Strategy Templates</h3>
+              <p className="text-xs text-[#94a3b8]">Select a template to quickly populate your strategy rules.</p>
             </div>
           </div>
 

@@ -74,10 +74,10 @@ export function StrategyConfigPanel({
           </div>
           <div>
             <h3 className="text-sm font-semibold text-white tracking-wide">
-              Strategy & Simulation Parameters
+              Strategy Settings
             </h3>
             <p className="text-xs text-[#64748b]">
-              Configure model rules, capital sizing, and risk boundaries
+              Configure strategy parameters, initial capital, and risk rules
             </p>
           </div>
         </div>
@@ -89,7 +89,7 @@ export function StrategyConfigPanel({
         <div>
           <label className="block text-xs font-medium text-[#94a3b8] mb-1.5 flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Algorithm Strategy</span>
+            <span>Strategy</span>
           </label>
           <select
             value={config.strategy}
@@ -127,7 +127,7 @@ export function StrategyConfigPanel({
         <div>
           <label className="block text-xs font-medium text-[#94a3b8] mb-1.5 flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>Candle Interval</span>
+            <span>Timeframe</span>
           </label>
           <div className="grid grid-cols-6 gap-1 bg-[#131b2a] p-1 rounded-lg border border-[#1e293b]">
             {(["1m", "5m", "15m", "1h", "4h", "1d"] as const).map((tf) => (
@@ -150,7 +150,7 @@ export function StrategyConfigPanel({
         {/* Lookback Range */}
         <div>
           <label className="block text-xs font-medium text-[#94a3b8] mb-1.5 flex items-center justify-between">
-            <span>Lookback Horizon</span>
+            <span>Lookback Period</span>
             <span className="font-mono text-cyan-400">{config.dateRangeDays} Days</span>
           </label>
           <div className="flex items-center gap-2">
@@ -175,7 +175,7 @@ export function StrategyConfigPanel({
           <div className="flex items-center gap-2">
             <Settings2 className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-xs font-semibold text-white uppercase tracking-wider">
-              {currentStrategy.name} Variables
+              {currentStrategy.name} Parameters
             </span>
           </div>
           <span className="text-[11px] text-[#64748b]">
@@ -240,7 +240,7 @@ export function StrategyConfigPanel({
         {/* Leverage */}
         <div>
           <label className="block text-xs font-medium text-[#94a3b8] mb-1.5 flex items-center justify-between">
-            <span>Leverage Multiplier</span>
+            <span>Leverage</span>
             <span className="font-mono text-amber-400 font-semibold">{config.leverage}x</span>
           </label>
           <div className="grid grid-cols-5 gap-1 bg-[#131b2a] p-1 rounded-lg border border-[#1e293b]">

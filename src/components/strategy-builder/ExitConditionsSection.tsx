@@ -32,9 +32,9 @@ export function ExitConditionsSection({
             03
           </div>
           <div>
-            <h2 className="text-base font-semibold text-white">Exit Management & Risk Guardrails</h2>
+            <h2 className="text-base font-semibold text-white">Exit Rules & Risk Management</h2>
             <p className="text-xs text-[#94a3b8]">
-              Protect capital with hard stop losses, take-profit ratios, dynamic trailing stops, and intraday circuit breakers.
+              Set stop loss, take-profit targets, trailing stops, and intraday square-off.
             </p>
           </div>
         </div>
@@ -49,7 +49,7 @@ export function ExitConditionsSection({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-rose-400 font-semibold text-sm">
               <ShieldAlert className="w-4 h-4" />
-              <span>Hard Stop Loss</span>
+              <span>Stop Loss</span>
             </div>
             <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/30">
               Required
@@ -57,7 +57,7 @@ export function ExitConditionsSection({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs text-[#94a3b8]">SL Calculation Model</label>
+            <label className="text-xs text-[#94a3b8]">Stop Loss Type</label>
             <div className="grid grid-cols-3 gap-1">
               {[
                 { id: "percentage" as StopLossType, label: "Percent (%)" },
@@ -308,20 +308,20 @@ export function ExitConditionsSection({
           </div>
         </div>
 
-        {/* Circuit Breakers & Account Safety */}
+        {/* Account Safety */}
         <div className="bg-[#0d121c] border border-[#1d2738] rounded-xl p-4 space-y-3.5 md:col-span-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-rose-400 font-semibold text-sm">
               <Flame className="w-4 h-4" />
-              <span>Circuit Breakers & Kill Switches</span>
+              <span>Daily Loss & Risk Limits</span>
             </div>
-            <span className="text-[11px] text-[#64748b]">Portfolio Level Risk</span>
+            <span className="text-[11px] text-[#64748b]">Account Risk</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs text-[#94a3b8] flex justify-between">
-                <span>Max Daily Drawdown Halt</span>
+                <span>Max Daily Loss Limit</span>
                 <span className="text-rose-400 font-mono">{riskConfig.maxDailyDrawdownPct}%</span>
               </label>
               <input

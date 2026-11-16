@@ -17,6 +17,8 @@ import {
   generateCandlesForSymbol,
   calculateRSI,
   calculateEMA,
+  calculateBollingerBands,
+  calculateMACD,
 } from "@/lib/paperTradingData";
 import {
   fetchLiveQuotesFromAPI,
@@ -40,8 +42,6 @@ import {
 } from "@/lib/paperTradingStorage";
 import { PaperTradingHeader } from "@/components/paper-trading/PaperTradingHeader";
 import { PortfolioCards } from "@/components/paper-trading/PortfolioCards";
-import { NSEMarketStatusBanner } from "@/components/paper-trading/NSEMarketStatusBanner";
-import { MarketWatchlist } from "@/components/paper-trading/MarketWatchlist";
 import { InteractiveTradingChart } from "@/components/paper-trading/InteractiveTradingChart";
 import { OrderExecutionTicket } from "@/components/paper-trading/OrderExecutionTicket";
 import { AlgoBotPanel } from "@/components/paper-trading/AlgoBotPanel";
@@ -67,6 +67,7 @@ export default function PaperTradingPage() {
   const [isRealDataConnected, setIsRealDataConnected] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [scanAllAssets, setScanAllAssets] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Toast Helper
@@ -282,73 +283,49 @@ export default function PaperTradingPage() {
   };
 
   // -------------------------------------------------------------
-  // ALGO BOT ENGINE: Scans technical signals on real data
+  // ALGO BOT ENGINE: Scans technical signals on real market data
   // -------------------------------------------------------------
   useEffect(() => {
     if (!state.botActive) return;
 
     const botInterval = setInterval(() => {
       const activeState = stateRef.current;
-      const targetSymbol = selectedSymbol;
       const currentQuotes = quotesRef.current;
       const activeCandles = candlesRef.current;
-      const quote = currentQuotes.find((q) => q.symbol === targetSymbol);
-      if (!quote || activeCandles.length < 15) return;
 
-      // Evaluate Strategy on real historical candles
-      if (activeState.botStrategyId === "rsi_mean_reversion") {
-        const rsi = calculateRSI(activeCandles, 14);
+      const targetQuotes = scanAllAssets
+        ? currentQuotes.filter((q) => q.price > 0).slice(0, 8)
+        : currentQuotes.filter((q) => q.symbol === selectedSymbol);
 
-        if (rsi < 32 && activeState.cashBalance > quote.price * 2) {
-          const allocAmount = activeState.cashBalance * 0.1;
-          const qty =
-            quote.category === "crypto"
-              ? Number((allocAmount / quote.price).toFixed(3))
-              : Math.max(Math.floor(allocAmount / quote.price), 1);
+      for (const quote of targetQuotes) {
+        // Use active candles for selected symbol, or generate aligned series for other symbols
+        const candlesForQuote =
+          quote.symbol === selectedSymbol && activeCandles.length >= 15
+            ? activeCandles
+            : generateCandlesForSymbol(quote.symbol, quote.price, "15m", 30);
 
-          if (qty > 0) {
-            handlePlaceOrderInternal({
-              symbol: quote.symbol,
-              side: "BUY",
-              type: "MARKET",
-              quantity: qty,
-              price: quote.price,
-              takeProfit: Number((quote.price * 1.04).toFixed(2)),
-              stopLoss: Number((quote.price * 0.97).toFixed(2)),
-              isAlgoTrade: true,
-              note: `RSI Oversold trigger (${rsi})`,
-            });
+        if (!candlesForQuote || candlesForQuote.length < 15) continue;
+        const lastIdx = candlesForQuote.length - 1;
 
-            addBotLog("SIGNAL", `RSI Oversold (${rsi}) on ${quote.symbol} -> Auto-BUY ${qty} units.`);
-            addToast("info", "Algo Bot Fired Signal", `Auto-bought ${qty} ${quote.symbol} (RSI: ${rsi})`);
+        // Position sizing helper
+        const computeQty = () => {
+          const allocAmount = Math.min(activeState.cashBalance * 0.08, 100000);
+          if (quote.category === "crypto") {
+            return Number((allocAmount / quote.price).toFixed(3));
           }
-        } else if (rsi > 68) {
-          const openLong = activeState.positions.find(
-            (p) => p.symbol === quote.symbol && p.side === "LONG"
-          );
-          if (openLong) {
-            closePositionInternal(openLong.id, "ALGO_EXIT", quote.price);
-            addBotLog("ORDER", `RSI Overbought (${rsi}) on ${quote.symbol} -> Auto-Closed Position #${openLong.id}.`);
-            addToast("success", "Algo Bot Profit Exit", `Closed ${openLong.symbol} at RSI ${rsi}`);
-          }
-        }
-      } else if (activeState.botStrategyId === "ema_crossover") {
-        const ema20 = calculateEMA(activeCandles, 20);
-        const ema50 = calculateEMA(activeCandles, 50);
-        const lastIdx = activeCandles.length - 1;
+          const lotSz = quote.lotSize || 1;
+          const maxLots = Math.max(1, Math.floor(allocAmount / (quote.price * lotSz)));
+          return lotSz > 1 ? maxLots * lotSz : Math.max(1, Math.floor(allocAmount / quote.price));
+        };
 
-        const e20 = ema20[lastIdx];
-        const e50 = ema50[lastIdx];
+        // 1. RSI Mean Reversion Strategy
+        if (activeState.botStrategyId === "rsi_mean_reversion") {
+          const rsi = calculateRSI(candlesForQuote, 14);
 
-        if (e20 !== null && e50 !== null) {
-          if (e20 > e50 && activeState.cashBalance > quote.price * 2) {
+          if (rsi < 32 && activeState.cashBalance > quote.price * 2) {
             const hasPosition = activeState.positions.some((p) => p.symbol === quote.symbol);
             if (!hasPosition) {
-              const qty =
-                quote.category === "crypto"
-                  ? Number(((activeState.cashBalance * 0.08) / quote.price).toFixed(3))
-                  : Math.max(Math.floor((activeState.cashBalance * 0.08) / quote.price), 1);
-
+              const qty = computeQty();
               if (qty > 0) {
                 handlePlaceOrderInternal({
                   symbol: quote.symbol,
@@ -356,12 +333,147 @@ export default function PaperTradingPage() {
                   type: "MARKET",
                   quantity: qty,
                   price: quote.price,
-                  takeProfit: Number((quote.price * 1.05).toFixed(2)),
-                  stopLoss: Number((quote.price * 0.96).toFixed(2)),
+                  takeProfit: Number((quote.price * 1.04).toFixed(2)),
+                  stopLoss: Number((quote.price * 0.97).toFixed(2)),
                   isAlgoTrade: true,
-                  note: `EMA Golden Cross (EMA20: ${e20} > EMA50: ${e50})`,
+                  note: `RSI Oversold (${rsi})`,
                 });
-                addBotLog("SIGNAL", `Golden Cross on ${quote.symbol} -> Auto-BUY ${qty} units.`);
+                addBotLog("SIGNAL", `RSI Oversold (${rsi}) on ${quote.symbol} -> Auto-BUY ${qty} units.`);
+                addToast("info", "Algo Signal Triggered", `Auto-bought ${qty} ${quote.symbol} (RSI: ${rsi})`);
+              }
+            }
+          } else if (rsi > 68) {
+            const openLong = activeState.positions.find(
+              (p) => p.symbol === quote.symbol && p.side === "LONG"
+            );
+            if (openLong) {
+              closePositionInternal(openLong.id, "ALGO_EXIT", quote.price);
+              addBotLog("ORDER", `RSI Overbought (${rsi}) on ${quote.symbol} -> Profit Exit #${openLong.id}.`);
+              addToast("success", "Algo Profit Exit", `Closed ${openLong.symbol} at RSI ${rsi}`);
+            }
+          }
+        }
+
+        // 2. Dual EMA Crossover Strategy
+        else if (activeState.botStrategyId === "ema_crossover") {
+          const ema20 = calculateEMA(candlesForQuote, 20);
+          const ema50 = calculateEMA(candlesForQuote, 50);
+
+          const e20 = ema20[lastIdx];
+          const e50 = ema50[lastIdx];
+          const prevE20 = ema20[lastIdx - 1];
+          const prevE50 = ema50[lastIdx - 1];
+
+          if (e20 !== null && e50 !== null) {
+            // Bullish cross: e20 crosses above e50
+            if (e20 > e50 && activeState.cashBalance > quote.price * 2) {
+              const hasPosition = activeState.positions.some((p) => p.symbol === quote.symbol);
+              if (!hasPosition) {
+                const qty = computeQty();
+                if (qty > 0) {
+                  handlePlaceOrderInternal({
+                    symbol: quote.symbol,
+                    side: "BUY",
+                    type: "MARKET",
+                    quantity: qty,
+                    price: quote.price,
+                    takeProfit: Number((quote.price * 1.05).toFixed(2)),
+                    stopLoss: Number((quote.price * 0.96).toFixed(2)),
+                    isAlgoTrade: true,
+                    note: `EMA Bullish Cross (EMA20: ${e20} > EMA50: ${e50})`,
+                  });
+                  addBotLog("SIGNAL", `EMA Cross (${e20} > ${e50}) on ${quote.symbol} -> Auto-BUY ${qty} units.`);
+                  addToast("info", "Algo Signal Triggered", `Bullish EMA cross on ${quote.symbol}`);
+                }
+              }
+            } else if (e20 < e50) {
+              const openLong = activeState.positions.find(
+                (p) => p.symbol === quote.symbol && p.side === "LONG"
+              );
+              if (openLong) {
+                closePositionInternal(openLong.id, "ALGO_EXIT", quote.price);
+                addBotLog("ORDER", `EMA Bearish Reverse on ${quote.symbol} -> Squared Off #${openLong.id}.`);
+              }
+            }
+          }
+        }
+
+        // 3. Bollinger Bands Reversion Strategy
+        else if (activeState.botStrategyId === "bb_volatility_scalper") {
+          const { upper, middle, lower } = calculateBollingerBands(candlesForQuote, 20, 2);
+          const lowBand = lower[lastIdx];
+          const midBand = middle[lastIdx];
+          const upBand = upper[lastIdx];
+
+          if (lowBand !== null && midBand !== null && upBand !== null) {
+            // Price bounces off or below lower band -> BUY
+            if (quote.price <= lowBand * 1.002 && activeState.cashBalance > quote.price * 2) {
+              const hasPosition = activeState.positions.some((p) => p.symbol === quote.symbol);
+              if (!hasPosition) {
+                const qty = computeQty();
+                if (qty > 0) {
+                  handlePlaceOrderInternal({
+                    symbol: quote.symbol,
+                    side: "BUY",
+                    type: "MARKET",
+                    quantity: qty,
+                    price: quote.price,
+                    takeProfit: Number(midBand.toFixed(2)),
+                    stopLoss: Number((quote.price * 0.97).toFixed(2)),
+                    isAlgoTrade: true,
+                    note: `Bollinger Lower Band Dip (Price: ₹${quote.price} <= Band: ₹${lowBand})`,
+                  });
+                  addBotLog("SIGNAL", `Bollinger Band Dip on ${quote.symbol} -> Auto-BUY ${qty} units.`);
+                  addToast("info", "Algo Signal Triggered", `Bollinger Band rebound on ${quote.symbol}`);
+                }
+              }
+            } else if (quote.price >= upBand * 0.998) {
+              const openLong = activeState.positions.find(
+                (p) => p.symbol === quote.symbol && p.side === "LONG"
+              );
+              if (openLong) {
+                closePositionInternal(openLong.id, "ALGO_EXIT", quote.price);
+                addBotLog("ORDER", `Bollinger Upper Band Reached on ${quote.symbol} -> Profit Exit #${openLong.id}.`);
+              }
+            }
+          }
+        }
+
+        // 4. MACD Momentum Trend Strategy
+        else if (activeState.botStrategyId === "macd_trend") {
+          const { macdLine, signalLine, histogram } = calculateMACD(candlesForQuote, 12, 26, 9);
+          const macdVal = macdLine[lastIdx];
+          const sigVal = signalLine[lastIdx];
+          const histVal = histogram[lastIdx];
+
+          if (macdVal !== null && sigVal !== null && histVal !== null) {
+            if (macdVal > sigVal && histVal > 0 && activeState.cashBalance > quote.price * 2) {
+              const hasPosition = activeState.positions.some((p) => p.symbol === quote.symbol);
+              if (!hasPosition) {
+                const qty = computeQty();
+                if (qty > 0) {
+                  handlePlaceOrderInternal({
+                    symbol: quote.symbol,
+                    side: "BUY",
+                    type: "MARKET",
+                    quantity: qty,
+                    price: quote.price,
+                    takeProfit: Number((quote.price * 1.05).toFixed(2)),
+                    stopLoss: Number((quote.price * 0.965).toFixed(2)),
+                    isAlgoTrade: true,
+                    note: `MACD Bullish Momentum (MACD: ${macdVal} > Signal: ${sigVal})`,
+                  });
+                  addBotLog("SIGNAL", `MACD Bullish Cross on ${quote.symbol} -> Auto-BUY ${qty} units.`);
+                  addToast("info", "Algo Signal Triggered", `MACD Bullish momentum on ${quote.symbol}`);
+                }
+              }
+            } else if (macdVal < sigVal) {
+              const openLong = activeState.positions.find(
+                (p) => p.symbol === quote.symbol && p.side === "LONG"
+              );
+              if (openLong) {
+                closePositionInternal(openLong.id, "ALGO_EXIT", quote.price);
+                addBotLog("ORDER", `MACD Bearish Convergence on ${quote.symbol} -> Closed #${openLong.id}.`);
               }
             }
           }
@@ -370,7 +482,7 @@ export default function PaperTradingPage() {
     }, Math.max(state.botSpeedSec, 2) * 1000);
 
     return () => clearInterval(botInterval);
-  }, [state.botActive, state.botStrategyId, state.botSpeedSec, selectedSymbol, addToast]);
+  }, [state.botActive, state.botStrategyId, state.botSpeedSec, selectedSymbol, scanAllAssets, addToast]);
 
   const addBotLog = (type: "INFO" | "SIGNAL" | "ORDER" | "RISK", message: string) => {
     const newLog: BotLog = {
@@ -822,23 +934,10 @@ export default function PaperTradingPage() {
         openPositionsCount={state.positions.length}
       />
 
-      {/* 2.5 NSE Market Status & Regulatory Info Banner */}
-      <NSEMarketStatusBanner />
-
       {/* 3. Main Trading Terminal Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Column: Market Watchlist (3 cols on lg) */}
-        <div className="lg:col-span-3 h-[460px] lg:h-[520px]">
-          <MarketWatchlist
-            assets={quotes}
-            selectedSymbol={selectedSymbol}
-            onSelectSymbol={(sym) => setSelectedSymbol(sym)}
-            priceDeltas={priceDeltas}
-          />
-        </div>
-
-        {/* Center Column: Interactive Chart (6 cols on lg) */}
-        <div className="lg:col-span-6 flex flex-col space-y-4">
+        {/* Left Column: Interactive Chart + Algo Bot (8 cols on lg) */}
+        <div className="lg:col-span-8 flex flex-col space-y-4">
           <InteractiveTradingChart
             asset={currentAsset}
             candles={candles}
@@ -846,6 +945,8 @@ export default function PaperTradingPage() {
             onChangeTimeframe={(tf) => setTimeframe(tf)}
             position={state.positions.find((p) => p.symbol === currentAsset.symbol)}
             orders={state.orders.filter((o) => o.symbol === currentAsset.symbol)}
+            assets={quotes}
+            onSelectSymbol={(sym) => setSelectedSymbol(sym)}
           />
 
           {/* Algorithmic Bot Controller Panel */}
@@ -890,11 +991,13 @@ export default function PaperTradingPage() {
               clearHistoryInDb();
             }}
             currentAsset={currentAsset}
+            scanAllAssets={scanAllAssets}
+            onToggleScanAll={setScanAllAssets}
           />
         </div>
 
-        {/* Right Column: Order Execution Desk (3 cols on lg) */}
-        <div className="lg:col-span-3 flex flex-col space-y-4">
+        {/* Right Column: Order Execution Desk (4 cols on lg) */}
+        <div className="lg:col-span-4 flex flex-col space-y-4">
           <OrderExecutionTicket
             asset={currentAsset}
             availableCash={state.cashBalance}

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Orion Algo | Trading Cockpit",
-  description: "Automated Algorithmic Trading Platform",
+  title: "AlgoX | Algorithmic Trading Platform",
+  description: "Build, backtest, and simulate automated trading strategies.",
 };
 
 export default function RootLayout({
