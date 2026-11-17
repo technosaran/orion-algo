@@ -10,7 +10,9 @@
     "test:backend": "cd backend && .venv\\Scripts\\python.exe tests_verification.py",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node scripts/migrate.js",
+    "db:migrate:dry-run": "node scripts/migrate.js --dry-run"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

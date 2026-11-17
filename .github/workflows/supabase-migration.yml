@@ -1,0 +1,58 @@
+name: Supabase Database Migrations
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/migrate.js'
+      - '.github/workflows/supabase-migration.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (validate SQL syntax without applying to database)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  migrate:
+    name: Supabase Database Migration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Validate Migrations (Dry Run)
+        if: github.event_name == 'pull_request' || inputs.dry_run == true
+        run: npm run db:migrate:dry-run
+
+      - name: Apply Migrations
+        if: github.event_name != 'pull_request' && inputs.dry_run != true
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL || secrets.DATABASE_URL }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_REGION: ${{ secrets.SUPABASE_REGION || 'aws-0-ap-south-1' }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] && [ -z "$SUPABASE_PROJECT_ID" ]; then
+            echo "::error::Neither SUPABASE_DB_URL nor SUPABASE_PROJECT_ID is configured in GitHub repository secrets!"
+            echo "Please configure either SUPABASE_DB_URL or SUPABASE_PROJECT_ID + SUPABASE_DB_PASSWORD in your GitHub repository secrets."
+            exit 1
+          fi
+          npm run db:migrate
