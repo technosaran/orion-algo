@@ -74,8 +74,8 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
     },
     positionSizing: {
       sizingType: "lots",
-      sizingValue: 2, // 2 lots (50 qty)
-      lotSize: 25,
+      sizingValue: 2, // 2 lots (130 qty)
+      lotSize: 65,
       maxOpenPositions: 1,
       maxLeverage: 1,
       slippagePct: 0.02,
@@ -154,8 +154,8 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
     },
     positionSizing: {
       sizingType: "lots",
-      sizingValue: 2, // 2 lots (30 qty)
-      lotSize: 15,
+      sizingValue: 2, // 2 lots (60 qty)
+      lotSize: 30,
       maxOpenPositions: 1,
       maxLeverage: 1,
       slippagePct: 0.03,
@@ -394,8 +394,8 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
     },
     positionSizing: {
       sizingType: "lots",
-      sizingValue: 2, // 2 lots (50 Qty)
-      lotSize: 25,
+      sizingValue: 2, // 2 lots (130 Qty)
+      lotSize: 65,
       maxOpenPositions: 2,
       maxLeverage: 1,
       slippagePct: 0.02,
@@ -469,8 +469,8 @@ export const STRATEGY_TEMPLATES: StrategyConfig[] = [
     },
     positionSizing: {
       sizingType: "lots",
-      sizingValue: 2, // 2 lots
-      lotSize: 25,
+      sizingValue: 2, // 2 lots (130 Qty)
+      lotSize: 65,
       maxOpenPositions: 2,
       maxLeverage: 1,
       slippagePct: 0.05,

@@ -62,7 +62,7 @@ interface LiveOrder {
 }
 
 const INDIAN_INSTRUMENTS = [
-  { symbol: "NIFTY50", name: "NIFTY 50 Futures", exchange: "NSE", lot: 75, price: 24350 },
+  { symbol: "NIFTY50", name: "NIFTY 50 Futures", exchange: "NSE", lot: 65, price: 24350 },
   { symbol: "BANKNIFTY", name: "Bank Nifty Futures", exchange: "NSE", lot: 30, price: 52180 },
   { symbol: "RELIANCE", name: "Reliance Industries", exchange: "NSE", lot: 1, price: 2980 },
   { symbol: "HDFCBANK", name: "HDFC Bank Ltd.", exchange: "NSE", lot: 1, price: 1720 },

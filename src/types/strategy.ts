@@ -88,7 +88,7 @@ export interface RiskManagementConfig {
 export interface PositionSizingConfig {
   sizingType: SizingType;
   sizingValue: number; // e.g. ₹50,000 or 2 lots or 10%
-  lotSize: number; // e.g. 25 for Nifty, 15 for BankNifty
+  lotSize: number; // e.g. 65 for Nifty, 30 for BankNifty
   maxOpenPositions: number;
   maxLeverage: number;
   slippagePct: number;

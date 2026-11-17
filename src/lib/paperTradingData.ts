@@ -1,6 +1,7 @@
 import { AssetQuote, CandleData, ChartTimeframe } from "@/types/paperTrading";
+import { getInstrumentLotSize } from "@/lib/formatters";
 
-export const INITIAL_ASSETS: AssetQuote[] = [
+const RAW_INITIAL_ASSETS: AssetQuote[] = [
   {
     symbol: "NIFTY50",
     name: "NIFTY 50 Index",
@@ -171,6 +172,11 @@ export const INITIAL_ASSETS: AssetQuote[] = [
     sparkline: [3870, 3875, 3886.3],
   },
 ];
+
+export const INITIAL_ASSETS: AssetQuote[] = RAW_INITIAL_ASSETS.map((asset) => ({
+  ...asset,
+  lotSize: asset.lotSize || getInstrumentLotSize(asset.symbol),
+}));
 
 /**
  * Creates clean price-anchored historical bars from real price reference

@@ -26,7 +26,7 @@ SYMBOL_MAPPINGS: Dict[str, Dict[str, str]] = {
     "INFY": {"source": "yahoo", "ticker": "INFY.NS", "name": "Infosys Ltd.", "category": "stock"},
     "ICICIBANK": {"source": "yahoo", "ticker": "ICICIBANK.NS", "name": "ICICI Bank Ltd.", "category": "stock"},
     "SBIN": {"source": "yahoo", "ticker": "SBIN.NS", "name": "State Bank of India", "category": "stock"},
-    "TATAMOTORS": {"source": "yahoo", "ticker": "TATAMOTORS.NS", "name": "Tata Motors Ltd.", "category": "stock"},
+    "TATAMOTORS": {"source": "yahoo", "ticker": "TMPV.NS", "name": "Tata Motors Ltd.", "category": "stock"},
     
     # Commodities (MCX / International Proxies)
     "CRUDEOIL": {"source": "yahoo", "ticker": "CL=F", "name": "Crude Oil (MCX/NYMEX)", "category": "commodity"},

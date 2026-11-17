@@ -248,10 +248,10 @@ def execute_paper_market_order(
     order_cost = price * quantity
     brokerage = 20.0  # ₹20 flat brokerage
 
-    # Update account cash
+    # Update account cash: margin is blocked for both LONG and SHORT positions
     account = get_paper_account()
     cur_cash = float(account["cash_balance"])
-    new_cash = cur_cash - (order_cost + brokerage) if side == "BUY" else cur_cash + (order_cost - brokerage)
+    new_cash = cur_cash - (order_cost + brokerage)
 
     # 1. Insert Order
     order_row = {
@@ -338,6 +338,12 @@ def fill_pending_order(order_id: str, current_price: float):
             "unrealized_pnl": 0.0,
             "unrealized_pnl_percent": 0.0,
         }).execute()
+
+        # Deduct margin and brokerage from paper account
+        acc = get_paper_account()
+        cash = float(acc.get("cash_balance", 1000000.0))
+        new_cash = max(0.0, cash - (total_val + 20.0))
+        supabase.table("paper_account").update({"cash_balance": round(new_cash, 2)}).eq("id", "default").execute()
     except Exception as e:
         logger.error(f"Error filling pending order {order_id}: {e}")
 

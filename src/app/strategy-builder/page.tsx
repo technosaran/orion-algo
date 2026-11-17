@@ -88,7 +88,7 @@ function createBlankStrategy(): StrategyConfig {
     positionSizing: {
       sizingType: "lots",
       sizingValue: 1,
-      lotSize: 25,
+      lotSize: 65,
       maxOpenPositions: 1,
       maxLeverage: 1,
       slippagePct: 0.02,

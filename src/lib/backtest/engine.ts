@@ -984,9 +984,12 @@ export async function runServerOrClientBacktest(
     try {
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
       const res = await fetch(`${apiUrl}/api/v1/backtest/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           strategy: config.strategy,
           symbol: config.symbol,
@@ -1002,6 +1005,7 @@ export async function runServerOrClientBacktest(
           strategy_params: config.strategyParams,
         }),
       });
+      clearTimeout(timeoutId);
 
       if (res.ok) {
         const data = await res.json();

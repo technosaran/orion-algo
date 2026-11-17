@@ -24,6 +24,7 @@ import {
   fetchLiveQuotesFromAPI,
   fetchHistoricalCandlesFromAPI,
 } from "@/lib/marketDataClient";
+import { getInstrumentLotSize } from "@/lib/formatters";
 import {
   loadPaperStateFromDb,
   savePaperState,
@@ -313,7 +314,7 @@ export default function PaperTradingPage() {
           if (quote.category === "crypto") {
             return Number((allocAmount / quote.price).toFixed(3));
           }
-          const lotSz = quote.lotSize || 1;
+          const lotSz = quote.lotSize || getInstrumentLotSize(quote.symbol);
           const maxLots = Math.max(1, Math.floor(allocAmount / (quote.price * lotSz)));
           return lotSz > 1 ? maxLots * lotSz : Math.max(1, Math.floor(allocAmount / quote.price));
         };

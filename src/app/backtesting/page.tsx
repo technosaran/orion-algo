@@ -6,7 +6,7 @@ import {
   AVAILABLE_SYMBOLS,
   STRATEGY_PRESETS,
   PresetStrategy,
-  runClientBacktest,
+  runServerOrClientBacktest,
 } from "@/lib/backtest/engine";
 import { BacktestConfig, BacktestResult } from "@/lib/backtest/types";
 import { BacktestHeader } from "@/components/backtesting/BacktestHeader";
@@ -38,12 +38,12 @@ export default function BacktestingPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
 
-  // Run backtest function
+  // Run backtest function with real market data and Supabase persistence
   const executeSimulation = useCallback(
-    (currentConfig: BacktestConfig) => {
+    async (currentConfig: BacktestConfig) => {
       setIsRunning(true);
       try {
-        const simResult = runClientBacktest(currentConfig);
+        const simResult = await runServerOrClientBacktest(currentConfig, true);
         setResult(simResult);
       } catch (err) {
         console.error("Backtest failed:", err);
@@ -86,6 +86,8 @@ export default function BacktestingPage() {
         isRunning={isRunning}
         activePresetId={activePresetId}
         onSelectPreset={handleSelectPreset}
+        dataSource={result?.dataSource || result?.summary?.dataSource}
+        isSynthetic={result?.isSynthetic ?? result?.summary?.isSynthetic}
       />
 
       {/* Strategy and Risk Configuration Panel */}

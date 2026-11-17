@@ -14,6 +14,8 @@ interface BacktestHeaderProps {
   isRunning: boolean;
   activePresetId: string | null;
   onSelectPreset: (preset: PresetStrategy) => void;
+  dataSource?: string;
+  isSynthetic?: boolean;
 }
 
 export function BacktestHeader({
@@ -21,6 +23,8 @@ export function BacktestHeader({
   isRunning,
   activePresetId,
   onSelectPreset,
+  dataSource,
+  isSynthetic,
 }: BacktestHeaderProps) {
   return (
     <div className="flex flex-col gap-4 pb-2">
@@ -35,6 +39,17 @@ export function BacktestHeader({
               <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">
                 Backtesting
               </h1>
+              {dataSource && (
+                <span
+                  className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border font-semibold ${
+                    !isSynthetic
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                      : "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                  }`}
+                >
+                  {!isSynthetic ? `● ${dataSource}` : `○ ${dataSource}`}
+                </span>
+              )}
             </div>
             <p className="text-xs md:text-sm text-[#94a3b8] mt-0.5">
               Test strategies against historical price data with realistic slippage, leverage, and fees
