@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getHistoricalCandles, computeDatasetStats, SYMBOL_CONFIGS } from "@/lib/marketDataService";
 import { ChartTimeframe } from "@/types/paperTrading";
 import { StoredDataset } from "@/types/dataset";
+import { supabase } from "@/lib/supabase";
 import fs from "fs/promises";
 import path from "path";
 
@@ -18,7 +19,9 @@ export async function POST(req: NextRequest) {
     const saveToStorage = body.saveToStorage !== false;
 
     const results: any[] = [];
-    await fs.mkdir(DATASETS_DIR, { recursive: true });
+    try {
+      await fs.mkdir(DATASETS_DIR, { recursive: true });
+    } catch {}
 
     let existingCatalog: StoredDataset[] = [];
     try {
@@ -59,13 +62,38 @@ export async function POST(req: NextRequest) {
           };
 
           if (saveToStorage) {
-            // Write dataset file
-            const filePath = path.join(DATASETS_DIR, `${id}.json`);
-            await fs.writeFile(filePath, JSON.stringify(dataset, null, 2), "utf-8");
+            // Write dataset file and catalog if filesystem is writable
+            try {
+              const filePath = path.join(DATASETS_DIR, `${id}.json`);
+              await fs.writeFile(filePath, JSON.stringify(dataset, null, 2), "utf-8");
 
-            // Add metadata to catalog
-            const metaOnly = { ...dataset, candles: [] };
-            existingCatalog = [metaOnly, ...existingCatalog.filter((d) => d.id !== id)];
+              const metaOnly = { ...dataset, candles: [] };
+              existingCatalog = [metaOnly, ...existingCatalog.filter((d) => d.id !== id)];
+            } catch (fsErr) {
+              console.warn("Local dataset write skipped (serverless environment):", fsErr);
+            }
+
+            // Sync to Supabase in background
+            if (supabase) {
+              try {
+                await supabase.from("market_datasets").upsert({
+                  id: dataset.id,
+                  symbol: dataset.symbol,
+                  name: dataset.name,
+                  timeframe: dataset.timeframe,
+                  category: dataset.category,
+                  source: dataset.source,
+                  candle_count: dataset.candleCount,
+                  start_date: new Date(candles[0].timestamp || Date.now()).toISOString(),
+                  end_date: new Date(candles[candles.length - 1].timestamp || Date.now()).toISOString(),
+                  candles: dataset.candles,
+                  stats: dataset.stats,
+                  updated_at: new Date().toISOString(),
+                });
+              } catch (dbErr) {
+                console.warn("Supabase batch dataset upsert note:", dbErr);
+              }
+            }
           }
 
           results.push({
@@ -85,7 +113,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (saveToStorage && existingCatalog.length > 0) {
-      await fs.writeFile(CATALOG_FILE, JSON.stringify(existingCatalog, null, 2), "utf-8");
+      try {
+        await fs.writeFile(CATALOG_FILE, JSON.stringify(existingCatalog, null, 2), "utf-8");
+      } catch {}
     }
 
     return NextResponse.json({

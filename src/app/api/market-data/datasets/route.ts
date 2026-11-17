@@ -52,7 +52,39 @@ export async function GET(req: NextRequest) {
     }
 
     // Return catalog list
-    const catalog = await ensureCatalog();
+    let catalog = await ensureCatalog();
+
+    // In serverless production (e.g. Vercel), fall back to Supabase cloud catalog
+    if (catalog.length === 0 && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("market_datasets")
+          .select("id, symbol, name, category, source, timeframe, candle_count, start_date, end_date, stats, created_at, updated_at")
+          .order("created_at", { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          catalog = data.map((d: any) => ({
+            id: d.id,
+            symbol: d.symbol,
+            name: d.name,
+            category: d.category,
+            source: d.source,
+            timeframe: d.timeframe,
+            range: d.stats?.range || "auto",
+            candleCount: d.candle_count,
+            startDate: d.start_date,
+            endDate: d.end_date,
+            candles: [],
+            stats: d.stats,
+            createdAt: new Date(d.created_at).getTime(),
+            updatedAt: new Date(d.updated_at).getTime(),
+          }));
+        }
+      } catch (dbErr) {
+        console.warn("Could not load datasets catalog from Supabase:", dbErr);
+      }
+    }
+
     return NextResponse.json({
       status: "success",
       count: catalog.length,
@@ -107,22 +139,25 @@ export async function POST(req: NextRequest) {
       updatedAt: timestampNow,
     };
 
-    // 1. Write full dataset to disk
-    await fs.mkdir(DATASETS_DIR, { recursive: true });
-    const datasetPath = path.join(DATASETS_DIR, `${id}.json`);
-    const datasetJson = JSON.stringify(dataset, null, 2);
-    await fs.writeFile(datasetPath, datasetJson, "utf-8");
-    dataset.sizeBytes = Buffer.byteLength(datasetJson);
+    // 1. Write full dataset to disk (wrapped for serverless read-only filesystems like Vercel)
+    try {
+      await fs.mkdir(DATASETS_DIR, { recursive: true });
+      const datasetPath = path.join(DATASETS_DIR, `${id}.json`);
+      const datasetJson = JSON.stringify(dataset, null, 2);
+      await fs.writeFile(datasetPath, datasetJson, "utf-8");
+      dataset.sizeBytes = Buffer.byteLength(datasetJson);
 
-    // 2. Update catalog
-    const catalog = await ensureCatalog();
-    const filteredCatalog = catalog.filter((d) => d.id !== id);
-    // store metadata in catalog
-    const metadataOnly: StoredDataset = {
-      ...dataset,
-      candles: [], // keep catalog lean
-    };
-    await saveCatalog([metadataOnly, ...filteredCatalog]);
+      // 2. Update catalog
+      const catalog = await ensureCatalog();
+      const filteredCatalog = catalog.filter((d) => d.id !== id);
+      const metadataOnly: StoredDataset = {
+        ...dataset,
+        candles: [], // keep catalog lean
+      };
+      await saveCatalog([metadataOnly, ...filteredCatalog]);
+    } catch (fsErr) {
+      console.warn("Local filesystem write skipped (serverless environment):", fsErr);
+    }
 
     // 3. Sync to Supabase in background
     if (supabase) {
