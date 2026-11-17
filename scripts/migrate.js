@@ -48,7 +48,7 @@ function getConnectionString() {
   if (projectRef && password) {
     const region = process.env.SUPABASE_REGION || 'aws-0-ap-south-1';
     // Use transaction/session pooler
-    return `postgresql://postgres.${projectRef}:${encodeURIComponent(password)}@${region}.pooler.supabase.com:6543/postgres?sslmode=require`;
+    return `postgresql://postgres.${projectRef}:${encodeURIComponent(password)}@${region}.pooler.supabase.com:6543/postgres`;
   }
 
   return null;
@@ -100,11 +100,15 @@ async function run() {
     process.exit(1);
   }
 
-  const maskedConn = connectionString.replace(/:([^:@]+)@/, ':****@');
+  const cleanConn = connectionString
+    .replace(/([?&])sslmode=[^&]+(&|$)/, '$1')
+    .replace(/[?&]$/, '');
+
+  const maskedConn = cleanConn.replace(/:([^:@]+)@/, ':****@');
   console.log(`\nConnecting to database: ${maskedConn}`);
 
   const client = new Client({
-    connectionString,
+    connectionString: cleanConn,
     ssl: { rejectUnauthorized: false },
     connectionTimeoutMillis: 15000,
   });
@@ -113,7 +117,7 @@ async function run() {
     await client.connect();
     console.log('Connected successfully to database.');
 
-    // Ensure migration tracking table exists
+    // Ensure migration tracking table exists with proper RLS policy
     await client.query(`
       CREATE TABLE IF NOT EXISTS public._schema_migrations (
         version TEXT PRIMARY KEY,
@@ -121,6 +125,15 @@ async function run() {
         applied_at TIMESTAMPTZ DEFAULT NOW(),
         execution_time_ms INTEGER
       );
+      ALTER TABLE public._schema_migrations ENABLE ROW LEVEL SECURITY;
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies WHERE tablename = '_schema_migrations' AND policyname = 'Schema migrations policy'
+        ) THEN
+          CREATE POLICY "Schema migrations policy" ON public._schema_migrations FOR ALL USING (true) WITH CHECK (true);
+        END IF;
+      END $$;
     `);
 
     // Fetch already applied migrations
