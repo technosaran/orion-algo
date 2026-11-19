@@ -979,13 +979,13 @@ export async function runServerOrClientBacktest(
   config: BacktestConfig,
   preferServer = false
 ): Promise<BacktestResult> {
-  // Option 1: Fast API / Orion Python Backend
+  // Option 1: Fast API / Orion Python Backend (only when preferServer is requested)
   if (preferServer) {
     try {
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const timeoutId = setTimeout(() => controller.abort(), 1200);
       const res = await fetch(`${apiUrl}/api/v1/backtest/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1075,20 +1075,34 @@ export async function runServerOrClientBacktest(
     }
   }
 
-  // Option 2: Kite Connect historical market data service
+  // Option 2: Kite Connect historical market data / NSE simulated candle service
   try {
     const { kiteDataService } = await import("./kiteDataService");
+    const toDate = new Date();
+    const days = config.dateRangeDays && config.dateRangeDays > 0 ? config.dateRangeDays : 90;
+    const fromDate = new Date(toDate.getTime() - days * 24 * 60 * 60 * 1000);
+
     const kiteCandles = await kiteDataService.getCandles(
       config.symbol,
-      config.timeframe as any
+      config.timeframe as any,
+      fromDate,
+      toDate
     );
     if (kiteCandles && Array.isArray(kiteCandles) && kiteCandles.length >= 10) {
       const result = runClientBacktest(config, kiteCandles);
-      result.source = "kite";
-      result.dataSource = "KITE";
-      result.isSynthetic = false;
-      result.summary.dataSource = "KITE";
-      result.summary.isSynthetic = false;
+      const hasKiteKeys = Boolean(
+        process.env.KITE_API_KEY ||
+        process.env.NEXT_PUBLIC_KITE_API_KEY ||
+        process.env.KITE_ACCESS_TOKEN ||
+        process.env.NEXT_PUBLIC_KITE_ACCESS_TOKEN
+      );
+      const isSynth = !hasKiteKeys || kiteCandles[0]?.source === "SYNTHETIC";
+      const sourceName = isSynth ? "SIMULATED (NSE)" : "ZERODHA KITE";
+      result.source = isSynth ? "synthetic" : "kite";
+      result.dataSource = sourceName;
+      result.isSynthetic = isSynth;
+      result.summary.dataSource = sourceName;
+      result.summary.isSynthetic = isSynth;
 
       await persistBacktestResult(config, result);
       return result;

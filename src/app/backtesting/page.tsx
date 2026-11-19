@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { AlertCircle } from "lucide-react";
 import {
   AVAILABLE_STRATEGIES,
   AVAILABLE_SYMBOLS,
@@ -15,11 +17,15 @@ import { MetricsSummaryCards } from "@/components/backtesting/MetricsSummaryCard
 import { EquityChart } from "@/components/backtesting/EquityChart";
 import { TradesTable } from "@/components/backtesting/TradesTable";
 
-export default function BacktestingPage() {
+function BacktestContent() {
+  const searchParams = useSearchParams();
+  const paramSymbol = searchParams.get("symbol");
+  const paramTimeframe = searchParams.get("timeframe");
+
   const [config, setConfig] = useState<BacktestConfig>({
     strategy: "sma_crossover",
-    symbol: "NIFTY50",
-    timeframe: "1h",
+    symbol: paramSymbol || "NIFTY50",
+    timeframe: (paramTimeframe as any) || "1h",
     initialCapital: 500000,
     dateRangeDays: 90,
     slippagePct: 0.05,
@@ -38,12 +44,25 @@ export default function BacktestingPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
 
+  // Sync state if query params change
+  useEffect(() => {
+    if (paramSymbol && paramSymbol !== config.symbol) {
+      const updated = {
+        ...config,
+        symbol: paramSymbol,
+        ...(paramTimeframe ? { timeframe: paramTimeframe as any } : {}),
+      };
+      setConfig(updated);
+      executeSimulation(updated);
+    }
+  }, [paramSymbol, paramTimeframe]);
+
   // Run backtest function with real market data and Supabase persistence
   const executeSimulation = useCallback(
     async (currentConfig: BacktestConfig) => {
       setIsRunning(true);
       try {
-        const simResult = await runServerOrClientBacktest(currentConfig, true);
+        const simResult = await runServerOrClientBacktest(currentConfig, false);
         setResult(simResult);
       } catch (err) {
         console.error("Backtest failed:", err);
@@ -79,7 +98,7 @@ export default function BacktestingPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#080a0f] text-[#cbd5e1] p-4 md:p-6 lg:p-8 space-y-6">
+    <div className="flex-1 overflow-y-auto bg-[#12141a] text-[#e0e0e0] p-4 md:p-6 lg:p-8 space-y-6 font-sans">
       {/* Header section with presets and primary action */}
       <BacktestHeader
         onRun={() => executeSimulation(config)}
@@ -100,6 +119,21 @@ export default function BacktestingPage() {
         isRunning={isRunning}
       />
 
+      {/* Diagnostic banner if no signals/trades generated */}
+      {result && result.trades.length === 0 && (
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs shadow-md">
+          <AlertCircle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+          <div>
+            <span className="font-semibold block text-sm text-white mb-0.5">
+              No Trade Signals Triggered in Selected Window
+            </span>
+            <span>
+              The strategy parameters did not generate any entries over the {config.dateRangeDays}-day lookback on the {config.timeframe} timeframe. Try increasing the Lookback Period slider (e.g. 180–365 days), choosing a faster timeframe (e.g. 15m), or selecting one of the tested Presets above.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Performance Summary KPI Cards */}
       {result && result.summary && (
         <MetricsSummaryCards summary={result.summary} />
@@ -119,5 +153,19 @@ export default function BacktestingPage() {
         <TradesTable trades={result.trades} symbol={result.symbol} />
       )}
     </div>
+  );
+}
+
+export default function BacktestingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 flex items-center justify-center bg-[#080a0f] text-[#64748b] font-mono text-sm">
+          Loading Backtesting Engine...
+        </div>
+      }
+    >
+      <BacktestContent />
+    </Suspense>
   );
 }

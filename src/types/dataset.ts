@@ -1,7 +1,7 @@
 import { CandleData, ChartTimeframe } from "./paperTrading";
 
 export type DatasetCategory = "stock" | "index" | "crypto" | "commodity";
-export type DatasetSource = "yahoo" | "binance";
+export type DatasetSource = "yahoo" | "binance" | "custom_csv" | "kite";
 
 export interface DatasetStats {
   high: number;

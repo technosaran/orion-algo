@@ -54,7 +54,7 @@ export default function PaperTradingPage() {
   // 1. Assets & Selected Symbol
   const [quotes, setQuotes] = useState<AssetQuote[]>(INITIAL_ASSETS);
   const [selectedSymbol, setSelectedSymbol] = useState<string>("NIFTY50");
-  const [timeframe, setTimeframe] = useState<ChartTimeframe>("1m");
+  const [timeframe, setTimeframe] = useState<ChartTimeframe>("15m");
   const [candles, setCandles] = useState<CandleData[]>([]);
   const [priceDeltas, setPriceDeltas] = useState<Record<string, "up" | "down">>({});
 
@@ -156,17 +156,52 @@ export default function PaperTradingPage() {
             if (prevCandles.length === 0) return prevCandles;
             const lastIndex = prevCandles.length - 1;
             const lastCandle = { ...prevCandles[lastIndex] };
-            lastCandle.close = curRealPrice;
-            lastCandle.high = Math.max(lastCandle.high, curRealPrice);
-            lastCandle.low = Math.min(lastCandle.low, curRealPrice);
-            const updated = [...prevCandles];
-            updated[lastIndex] = lastCandle;
-            return updated;
+            // Ensure difference is reasonable to prevent disjoint jump lines
+            const divergence = Math.abs(curRealPrice - lastCandle.close) / (lastCandle.close || 1);
+            if (divergence < 0.05) {
+              lastCandle.close = curRealPrice;
+              lastCandle.high = Math.max(lastCandle.high, curRealPrice);
+              lastCandle.low = Math.min(lastCandle.low, curRealPrice);
+              const updated = [...prevCandles];
+              updated[lastIndex] = lastCandle;
+              return updated;
+            }
+            return prevCandles;
           });
         }
 
         // Check Take Profit / Stop Loss with REAL live prices
         const quotePriceMap = new Map(realQuotes.map((q) => [q.symbol, q.price]));
+
+        // Dynamically update open positions with real-time mark prices and P&L
+        setState((prev) => {
+          if (prev.positions.length === 0) return prev;
+          let hasDiff = false;
+          const updated = prev.positions.map((pos) => {
+            const livePrice = quotePriceMap.get(pos.symbol);
+            if (!livePrice) return pos;
+            const isLong = pos.side === "LONG";
+            const pnl = isLong
+              ? (livePrice - pos.entryPrice) * pos.quantity
+              : (pos.entryPrice - livePrice) * pos.quantity;
+            const pnlPct = (pnl / (pos.entryPrice * pos.quantity)) * 100;
+            const rPnl = Math.round(pnl * 100) / 100;
+            const rPnlPct = Math.round(pnlPct * 100) / 100;
+
+            if (pos.currentPrice !== livePrice || pos.unrealizedPnl !== rPnl) {
+              hasDiff = true;
+              return {
+                ...pos,
+                currentPrice: livePrice,
+                unrealizedPnl: rPnl,
+                unrealizedPnlPercent: rPnlPct,
+              };
+            }
+            return pos;
+          });
+          return hasDiff ? { ...prev, positions: updated } : prev;
+        });
+
         stateRef.current.positions.forEach((pos) => {
           const livePrice = quotePriceMap.get(pos.symbol);
           if (!livePrice) return;
@@ -309,14 +344,21 @@ export default function PaperTradingPage() {
         const lastIdx = candlesForQuote.length - 1;
 
         // Position sizing helper
-        const computeQty = () => {
+        const computeSizing = () => {
           const allocAmount = Math.min(activeState.cashBalance * 0.08, 100000);
           if (quote.category === "crypto") {
-            return Number((allocAmount / quote.price).toFixed(3));
+            const q = Number((allocAmount / quote.price).toFixed(3));
+            return { qty: q, marginReq: q * quote.price };
           }
           const lotSz = quote.lotSize || getInstrumentLotSize(quote.symbol);
-          const maxLots = Math.max(1, Math.floor(allocAmount / (quote.price * lotSz)));
-          return lotSz > 1 ? maxLots * lotSz : Math.max(1, Math.floor(allocAmount / quote.price));
+          const isFO = lotSz > 1 || quote.category === "index";
+          if (isFO) {
+            const marginPerLot = quote.price * lotSz * 0.10;
+            const maxLots = Math.max(1, Math.floor(allocAmount / marginPerLot));
+            return { qty: maxLots * lotSz, marginReq: maxLots * marginPerLot };
+          }
+          const q = Math.max(1, Math.floor(allocAmount / quote.price));
+          return { qty: q, marginReq: q * quote.price };
         };
 
         // 1. RSI Mean Reversion Strategy
@@ -326,7 +368,7 @@ export default function PaperTradingPage() {
           if (rsi < 32 && activeState.cashBalance > quote.price * 2) {
             const hasPosition = activeState.positions.some((p) => p.symbol === quote.symbol);
             if (!hasPosition) {
-              const qty = computeQty();
+              const { qty, marginReq } = computeSizing();
               if (qty > 0) {
                 handlePlaceOrderInternal({
                   symbol: quote.symbol,
@@ -334,6 +376,7 @@ export default function PaperTradingPage() {
                   type: "MARKET",
                   quantity: qty,
                   price: quote.price,
+                  marginRequired: marginReq,
                   takeProfit: Number((quote.price * 1.04).toFixed(2)),
                   stopLoss: Number((quote.price * 0.97).toFixed(2)),
                   isAlgoTrade: true,
@@ -370,7 +413,7 @@ export default function PaperTradingPage() {
             if (e20 > e50 && activeState.cashBalance > quote.price * 2) {
               const hasPosition = activeState.positions.some((p) => p.symbol === quote.symbol);
               if (!hasPosition) {
-                const qty = computeQty();
+                const { qty, marginReq } = computeSizing();
                 if (qty > 0) {
                   handlePlaceOrderInternal({
                     symbol: quote.symbol,
@@ -378,6 +421,7 @@ export default function PaperTradingPage() {
                     type: "MARKET",
                     quantity: qty,
                     price: quote.price,
+                    marginRequired: marginReq,
                     takeProfit: Number((quote.price * 1.05).toFixed(2)),
                     stopLoss: Number((quote.price * 0.96).toFixed(2)),
                     isAlgoTrade: true,
@@ -411,7 +455,7 @@ export default function PaperTradingPage() {
             if (quote.price <= lowBand * 1.002 && activeState.cashBalance > quote.price * 2) {
               const hasPosition = activeState.positions.some((p) => p.symbol === quote.symbol);
               if (!hasPosition) {
-                const qty = computeQty();
+                const { qty, marginReq } = computeSizing();
                 if (qty > 0) {
                   handlePlaceOrderInternal({
                     symbol: quote.symbol,
@@ -419,6 +463,7 @@ export default function PaperTradingPage() {
                     type: "MARKET",
                     quantity: qty,
                     price: quote.price,
+                    marginRequired: marginReq,
                     takeProfit: Number(midBand.toFixed(2)),
                     stopLoss: Number((quote.price * 0.97).toFixed(2)),
                     isAlgoTrade: true,
@@ -451,7 +496,7 @@ export default function PaperTradingPage() {
             if (macdVal > sigVal && histVal > 0 && activeState.cashBalance > quote.price * 2) {
               const hasPosition = activeState.positions.some((p) => p.symbol === quote.symbol);
               if (!hasPosition) {
-                const qty = computeQty();
+                const { qty, marginReq } = computeSizing();
                 if (qty > 0) {
                   handlePlaceOrderInternal({
                     symbol: quote.symbol,
@@ -459,6 +504,7 @@ export default function PaperTradingPage() {
                     type: "MARKET",
                     quantity: qty,
                     price: quote.price,
+                    marginRequired: marginReq,
                     takeProfit: Number((quote.price * 1.05).toFixed(2)),
                     stopLoss: Number((quote.price * 0.965).toFixed(2)),
                     isAlgoTrade: true,
@@ -509,13 +555,15 @@ export default function PaperTradingPage() {
     type: OrderType;
     quantity: number;
     price: number;
+    marginRequired?: number;
     targetPrice?: number;
     takeProfit?: number;
     stopLoss?: number;
     isAlgoTrade?: boolean;
     note?: string;
   }) => {
-    const orderCost = orderData.price * orderData.quantity;
+    const notionalValue = orderData.price * orderData.quantity;
+    const requiredFunds = orderData.marginRequired ?? notionalValue;
 
     if (orderData.type === "MARKET") {
       // Check if order is closing or covering an existing position on the opposite side
@@ -617,11 +665,11 @@ export default function PaperTradingPage() {
       }
 
       // Opening new LONG or SHORT position: Validate Capital Availability
-      if (state.cashBalance < orderCost) {
+      if (state.cashBalance < requiredFunds) {
         addToast(
           "error",
           "Order Rejected: Insufficient Funds",
-          `Required: ₹${orderCost.toLocaleString("en-IN", { minimumFractionDigits: 2 })}, Available: ₹${state.cashBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+          `Required: ₹${requiredFunds.toLocaleString("en-IN", { minimumFractionDigits: 2 })}, Available: ₹${state.cashBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
         );
         return;
       }
@@ -633,7 +681,7 @@ export default function PaperTradingPage() {
         quantity: orderData.quantity,
         entryPrice: orderData.price,
         currentPrice: orderData.price,
-        marginUsed: orderCost,
+        marginUsed: requiredFunds,
         entryTime: Date.now(),
         takeProfit: orderData.takeProfit,
         stopLoss: orderData.stopLoss,
@@ -648,7 +696,7 @@ export default function PaperTradingPage() {
         type: orderData.type,
         price: orderData.price,
         quantity: orderData.quantity,
-        totalValue: orderCost,
+        totalValue: notionalValue,
         status: "FILLED",
         createdAt: Date.now(),
         executedAt: Date.now(),
@@ -658,7 +706,7 @@ export default function PaperTradingPage() {
         note: orderData.note,
       };
 
-      const newCash = state.cashBalance - orderCost;
+      const newCash = state.cashBalance - requiredFunds;
 
       setState((prev) => ({
         ...prev,
@@ -681,7 +729,7 @@ export default function PaperTradingPage() {
       addToast(
         "success",
         `Paper ${orderData.side} Order Filled (Saved to DB)`,
-        `${orderData.quantity} ${orderData.symbol} @ ₹${orderData.price.toFixed(2)} (₹${orderCost.toLocaleString("en-IN", { minimumFractionDigits: 2 })})`
+        `${orderData.quantity} ${orderData.symbol} @ ₹${orderData.price.toFixed(2)} (₹${notionalValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })})`
       );
     } else {
       const newOrder: PaperOrder = {
@@ -692,7 +740,7 @@ export default function PaperTradingPage() {
         price: orderData.price,
         targetPrice: orderData.targetPrice,
         quantity: orderData.quantity,
-        totalValue: orderCost,
+        totalValue: notionalValue,
         status: "PENDING",
         createdAt: Date.now(),
         takeProfit: orderData.takeProfit,
@@ -720,8 +768,12 @@ export default function PaperTradingPage() {
       const ord = prev.orders.find((o) => o.id === orderId);
       if (!ord || ord.status !== "PENDING") return prev;
 
-      const orderCost = executionPrice * ord.quantity;
-      if (prev.cashBalance < orderCost && ord.side === "BUY") {
+      const notional = executionPrice * ord.quantity;
+      const rawLot = getInstrumentLotSize(ord.symbol);
+      const isFO = rawLot > 1 || ["NIFTY50", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "SENSEX", "CRUDEOIL", "GOLD"].includes(ord.symbol);
+      const requiredMargin = isFO ? notional * 0.10 : notional;
+
+      if (prev.cashBalance < requiredMargin && ord.side === "BUY") {
         updateOrderStatusInDb(orderId, "REJECTED");
         return {
           ...prev,
@@ -738,7 +790,7 @@ export default function PaperTradingPage() {
         quantity: ord.quantity,
         entryPrice: executionPrice,
         currentPrice: executionPrice,
-        marginUsed: orderCost,
+        marginUsed: requiredMargin,
         entryTime: Date.now(),
         takeProfit: ord.takeProfit,
         stopLoss: ord.stopLoss,
@@ -757,7 +809,7 @@ export default function PaperTradingPage() {
           : o
       );
 
-      const newCash = prev.cashBalance - orderCost;
+      const newCash = prev.cashBalance - requiredMargin;
 
       // Sync execution to Supabase Database
       savePositionToDb(newPosition);
@@ -905,7 +957,7 @@ export default function PaperTradingPage() {
   const summary = computePortfolioSummary(state, quotes);
 
   return (
-    <div className="flex-1 overflow-y-auto h-full flex flex-col p-4 md:p-6 space-y-5 bg-[#080a0f] text-[#cbd5e1]">
+    <div className="flex-1 overflow-y-auto h-full flex flex-col p-4 md:p-6 space-y-5 bg-[#12141a] text-[#e0e0e0] font-sans">
       {/* 1. Header with Simulator & Bot Controls */}
       <PaperTradingHeader
         isSimulating={isSimulating}
@@ -937,7 +989,7 @@ export default function PaperTradingPage() {
 
       {/* 3. Main Trading Terminal Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Column: Interactive Chart + Algo Bot (8 cols on lg) */}
+        {/* Left Column: Interactive Chart + Unified Activity Tabs (8 cols on lg) */}
         <div className="lg:col-span-8 flex flex-col space-y-4">
           <InteractiveTradingChart
             asset={currentAsset}
@@ -950,50 +1002,63 @@ export default function PaperTradingPage() {
             onSelectSymbol={(sym) => setSelectedSymbol(sym)}
           />
 
-          {/* Algorithmic Bot Controller Panel */}
-          <AlgoBotPanel
+          {/* Integrated Activity Deck: Positions, Pending Orders, Trade History & Algo Bot */}
+          <PositionsAndOrdersTabs
+            positions={state.positions}
+            orders={state.orders}
+            history={state.history}
+            quotes={quotes}
+            onClosePosition={handleClosePosition}
+            onCloseAllPositions={handleCloseAllPositions}
+            onCancelOrder={handleCancelOrder}
+            onClearHistory={handleClearHistory}
             botActive={state.botActive}
-            onToggleBot={() => {
-              const nextBot = !state.botActive;
-              setState((prev) => ({ ...prev, botActive: nextBot }));
-              saveAccountToDb(
-                state.initialBalance,
-                state.cashBalance,
-                nextBot,
-                state.botStrategyId,
-                state.botSpeedSec
-              );
-            }}
-            strategyId={state.botStrategyId}
-            onChangeStrategy={(id) => {
-              setState((prev) => ({ ...prev, botStrategyId: id }));
-              saveAccountToDb(
-                state.initialBalance,
-                state.cashBalance,
-                state.botActive,
-                id,
-                state.botSpeedSec
-              );
-            }}
-            speedSec={state.botSpeedSec}
-            onChangeSpeed={(sec) => {
-              setState((prev) => ({ ...prev, botSpeedSec: sec }));
-              saveAccountToDb(
-                state.initialBalance,
-                state.cashBalance,
-                state.botActive,
-                state.botStrategyId,
-                sec
-              );
-            }}
-            logs={state.botLogs}
-            onClearLogs={() => {
-              setState((prev) => ({ ...prev, botLogs: [] }));
-              clearHistoryInDb();
-            }}
-            currentAsset={currentAsset}
-            scanAllAssets={scanAllAssets}
-            onToggleScanAll={setScanAllAssets}
+            botSlot={
+              <AlgoBotPanel
+                botActive={state.botActive}
+                onToggleBot={() => {
+                  const nextBot = !state.botActive;
+                  setState((prev) => ({ ...prev, botActive: nextBot }));
+                  saveAccountToDb(
+                    state.initialBalance,
+                    state.cashBalance,
+                    nextBot,
+                    state.botStrategyId,
+                    state.botSpeedSec
+                  );
+                }}
+                strategyId={state.botStrategyId}
+                onChangeStrategy={(id) => {
+                  setState((prev) => ({ ...prev, botStrategyId: id }));
+                  saveAccountToDb(
+                    state.initialBalance,
+                    state.cashBalance,
+                    state.botActive,
+                    id,
+                    state.botSpeedSec
+                  );
+                }}
+                speedSec={state.botSpeedSec}
+                onChangeSpeed={(sec) => {
+                  setState((prev) => ({ ...prev, botSpeedSec: sec }));
+                  saveAccountToDb(
+                    state.initialBalance,
+                    state.cashBalance,
+                    state.botActive,
+                    state.botStrategyId,
+                    sec
+                  );
+                }}
+                logs={state.botLogs}
+                onClearLogs={() => {
+                  setState((prev) => ({ ...prev, botLogs: [] }));
+                  clearHistoryInDb();
+                }}
+                currentAsset={currentAsset}
+                scanAllAssets={scanAllAssets}
+                onToggleScanAll={setScanAllAssets}
+              />
+            }
           />
         </div>
 
@@ -1009,18 +1074,6 @@ export default function PaperTradingPage() {
           />
         </div>
       </div>
-
-      {/* 4. Bottom Tabbed Section: Positions, Pending Orders, Trade History */}
-      <PositionsAndOrdersTabs
-        positions={state.positions}
-        orders={state.orders}
-        history={state.history}
-        quotes={quotes}
-        onClosePosition={handleClosePosition}
-        onCloseAllPositions={handleCloseAllPositions}
-        onCancelOrder={handleCancelOrder}
-        onClearHistory={handleClearHistory}
-      />
 
       {/* Reset Account Balance Modal */}
       <ResetPortfolioModal

@@ -1,26 +1,146 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #12141a;
+  --foreground: #e0e0e0;
+
+  /* Zerodha Kite Official Design System Tokens */
+  --kite-blue: #387ed1;
+  --kite-blue-light: #4184f3;
+  --kite-blue-hover: #3273c2;
+  --kite-orange: #ff5722;
+  --kite-orange-hover: #e04818;
+  --kite-green: #4caf50;
+  --kite-green-light: #5cb860;
+  --kite-red: #df514c;
+  --kite-red-light: #eb5757;
+
+  --kite-bg: #12141a;
+  --kite-sidebar: #161922;
+  --kite-card: #191c24;
+  --kite-card-hover: #202430;
+  --kite-card-inner: #151821;
+  --kite-border: #232733;
+  --kite-border-subtle: #1c202a;
+
+  --kite-text-primary: #e0e0e0;
+  --kite-text-secondary: #9b9b9b;
+  --kite-text-muted: #666666;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: var(--font-roboto-mono), "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Number / Currency / Metric tabular alignment (Zerodha Kite standard) */
+.tabular-nums,
+.num-font,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Zerodha Specific Utility Classes */
+.text-kite-green {
+  color: #4caf50;
+}
+.text-kite-red {
+  color: #df514c;
+}
+.text-kite-blue {
+  color: #4184f3;
+}
+.text-kite-orange {
+  color: #ff5722;
+}
+
+.bg-kite-green {
+  background-color: #4caf50;
+}
+.bg-kite-red {
+  background-color: #df514c;
+}
+.bg-kite-blue {
+  background-color: #4184f3;
+}
+.bg-kite-orange {
+  background-color: #ff5722;
+}
+
+.bg-kite-green-subtle {
+  background-color: rgba(76, 175, 80, 0.12);
+  border-color: rgba(76, 175, 80, 0.25);
+  color: #4caf50;
+}
+.bg-kite-red-subtle {
+  background-color: rgba(223, 81, 76, 0.12);
+  border-color: rgba(223, 81, 76, 0.25);
+  color: #df514c;
+}
+.bg-kite-blue-subtle {
+  background-color: rgba(65, 132, 243, 0.12);
+  border-color: rgba(65, 132, 243, 0.25);
+  color: #4184f3;
+}
+
+/* Kite Button Styles */
+.btn-kite-buy {
+  background-color: #4184f3;
+  color: #ffffff;
+  font-weight: 600;
+  transition: all 0.15s ease-in-out;
+}
+.btn-kite-buy:hover {
+  background-color: #3874d8;
+}
+
+.btn-kite-sell {
+  background-color: #ff5722;
+  color: #ffffff;
+  font-weight: 600;
+  transition: all 0.15s ease-in-out;
+}
+.btn-kite-sell:hover {
+  background-color: #e04818;
+}
+
+/* Custom Scrollbar styled for dark trading terminal */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #12141a;
+}
+::-webkit-scrollbar-thumb {
+  background: #252a38;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #363d50;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox, modern Chrome, Safari, Edge */
 }

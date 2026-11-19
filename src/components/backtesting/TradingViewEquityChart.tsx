@@ -79,32 +79,32 @@ export function TradingViewEquityChart({
       width: container.clientWidth,
       height: 300,
       layout: {
-        background: { type: ColorType.Solid, color: "#080b12" },
-        textColor: "#94a3b8",
+        background: { type: ColorType.Solid, color: "#12141a" },
+        textColor: "#9b9b9b",
         fontSize: 11,
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       },
       grid: {
-        vertLines: { color: "rgba(30, 41, 59, 0.4)" },
-        horzLines: { color: "rgba(30, 41, 59, 0.4)" },
+        vertLines: { color: "rgba(35, 39, 51, 0.6)" },
+        horzLines: { color: "rgba(35, 39, 51, 0.6)" },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: {
-          color: "#475569",
+          color: "#444b58",
           width: 1,
           style: LineStyle.Dashed,
-          labelBackgroundColor: "#1e293b",
+          labelBackgroundColor: "#202430",
         },
         horzLine: {
-          color: "#475569",
+          color: "#444b58",
           width: 1,
           style: LineStyle.Dashed,
-          labelBackgroundColor: "#1e293b",
+          labelBackgroundColor: "#202430",
         },
       },
       timeScale: {
-        borderColor: "#1e293b",
+        borderColor: "#232733",
         timeVisible: true,
         secondsVisible: false,
       },
@@ -121,7 +121,7 @@ export function TradingViewEquityChart({
         },
       },
       rightPriceScale: {
-        borderColor: "#1e293b",
+        borderColor: "#232733",
       },
       handleScroll: {
         mouseWheel: true,
@@ -139,19 +139,19 @@ export function TradingViewEquityChart({
     chartRef.current = chart;
 
     if (activeTab === "equity") {
-      // Equity Area Series
+      // Equity Area Series (Zerodha Kite Green)
       const eqSeries = chart.addSeries(AreaSeries, {
-        topColor: "rgba(16, 185, 129, 0.45)",
-        bottomColor: "rgba(16, 185, 129, 0.0)",
-        lineColor: "#10b981",
+        topColor: "rgba(76, 175, 80, 0.35)",
+        bottomColor: "rgba(76, 175, 80, 0.0)",
+        lineColor: "#4caf50",
         lineWidth: 2,
         title: "Strategy Equity",
       });
       equitySeriesRef.current = eqSeries;
 
-      // Benchmark Line Series
+      // Benchmark Line Series (Zerodha Kite Blue)
       const bmSeries = chart.addSeries(LineSeries, {
-        color: "#64748b",
+        color: "#4184f3",
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         title: "Benchmark",
@@ -163,11 +163,11 @@ export function TradingViewEquityChart({
       eqSeries.setData(eqData);
       bmSeries.setData(bmData);
     } else {
-      // Drawdown Area Series
+      // Drawdown Area Series (Zerodha Kite Red)
       const ddSeries = chart.addSeries(AreaSeries, {
-        topColor: "rgba(244, 63, 94, 0.0)",
-        bottomColor: "rgba(244, 63, 94, 0.45)",
-        lineColor: "#f43f5e",
+        topColor: "rgba(223, 81, 76, 0.0)",
+        bottomColor: "rgba(223, 81, 76, 0.35)",
+        lineColor: "#df514c",
         lineWidth: 2,
         title: "Drawdown %",
         invertFilledArea: true,
@@ -227,18 +227,18 @@ export function TradingViewEquityChart({
   };
 
   return (
-    <div className="relative w-full h-[320px] bg-[#080b12] rounded-lg overflow-hidden border border-[#1a2333]/80">
+    <div className="relative w-full h-[320px] bg-[#12141a] rounded-lg overflow-hidden border border-[#232733] font-sans">
       <div ref={containerRef} className="w-full h-full" />
       <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1.5">
         <button
           onClick={handleFit}
-          className="p-1 rounded bg-[#131b2a]/90 text-[#94a3b8] hover:text-white border border-[#222e42] text-xs transition-colors"
+          className="p-1 rounded bg-[#14171f]/90 text-[#9b9b9b] hover:text-white border border-[#232733] text-xs transition-colors"
           title="Fit View"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
       </div>
-      <div className="absolute bottom-1.5 left-2.5 z-10 text-[10px] font-mono text-[#475569] pointer-events-none">
+      <div className="absolute bottom-1.5 left-2.5 z-10 text-[10px] font-mono tabular-nums text-[#666666] pointer-events-none">
         TradingView Lightweight Charts™
       </div>
     </div>

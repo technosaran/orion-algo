@@ -25,113 +25,99 @@ export function PortfolioCards({ summary, openPositionsCount }: PortfolioCardsPr
   const isPositiveUnrealized = summary.unrealizedPnl >= 0;
   const isPositiveRealized = summary.realizedPnl >= 0;
 
-  const marginPct =
-    summary.totalEquity > 0
-      ? Math.min(Math.round((summary.marginUsed / summary.totalEquity) * 100), 100)
-      : 0;
-
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 font-sans">
       {/* 1. Total Portfolio Equity */}
-      <div className="p-4 rounded-xl bg-[#0b0f19] border border-[#1a2333] hover:border-[#24324a] transition-colors relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
-        <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-1.5">
-          <span className="font-medium">Total Equity</span>
-          <div className="p-1 rounded bg-[#131b2c] text-emerald-400">
-            <Wallet className="w-3.5 h-3.5" />
+      <div className="p-3 rounded-xl bg-[#191c24] border border-[#232733] hover:border-[#2a2f3e] transition-colors relative overflow-hidden group">
+        <div className="flex items-center justify-between text-xs text-[#9b9b9b] mb-1">
+          <span className="font-medium text-[11px]">Total Equity</span>
+          <div className="p-1 rounded bg-[#14171f] text-[#4caf50] border border-[#232733]">
+            <Wallet className="w-3 h-3" />
           </div>
         </div>
-        <div className="text-xl font-bold text-white tracking-tight">
+        <div className="text-lg font-bold font-mono tabular-nums text-white tracking-tight">
           {formatINR(summary.totalEquity, { decimals: 2 })}
         </div>
-        <div className="flex items-center gap-1.5 mt-2 text-xs">
+        <div className="flex items-center gap-1 mt-1 text-[11px]">
           <span
-            className={`flex items-center font-semibold ${
-              isPositiveEquity ? "text-emerald-400" : "text-rose-400"
+            className={`flex items-center font-mono tabular-nums font-semibold ${
+              isPositiveEquity ? "text-[#4caf50]" : "text-[#df514c]"
             }`}
           >
             {isPositiveEquity ? (
-              <TrendingUp className="w-3.5 h-3.5 mr-0.5 inline" />
+              <TrendingUp className="w-3 h-3 mr-0.5 inline" />
             ) : (
-              <TrendingDown className="w-3.5 h-3.5 mr-0.5 inline" />
+              <TrendingDown className="w-3 h-3 mr-0.5 inline" />
             )}
             {isPositiveEquity ? "+" : ""}
             {returnPercent.toFixed(2)}%
           </span>
-          <span className="text-[#64748b]">
-            ({formatINR(returnDollar, { showSign: true, decimals: 2 })})
+          <span className="text-[#666666] font-mono tabular-nums text-[10px]">
+            ({formatINR(returnDollar, { showSign: true, decimals: 0 })})
           </span>
         </div>
       </div>
 
       {/* 2. Free Buying Power */}
-      <div className="p-4 rounded-xl bg-[#0b0f19] border border-[#1a2333] hover:border-[#24324a] transition-colors relative overflow-hidden group">
-        <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-1.5">
-          <span className="font-medium">Buying Power</span>
-          <div className="p-1 rounded bg-[#131b2c] text-cyan-400">
-            <IndianRupee className="w-3.5 h-3.5" />
+      <div className="p-3 rounded-xl bg-[#191c24] border border-[#232733] hover:border-[#2a2f3e] transition-colors relative overflow-hidden group">
+        <div className="flex items-center justify-between text-xs text-[#9b9b9b] mb-1">
+          <span className="font-medium text-[11px]">Buying Power</span>
+          <div className="p-1 rounded bg-[#14171f] text-[#4184f3] border border-[#232733]">
+            <IndianRupee className="w-3 h-3" />
           </div>
         </div>
-        <div className="text-xl font-bold text-white tracking-tight">
+        <div className="text-lg font-bold font-mono tabular-nums text-white tracking-tight">
           {formatINR(summary.cashBalance, { decimals: 2 })}
         </div>
-        <div className="mt-2.5">
-          <div className="flex justify-between text-[11px] text-[#64748b] mb-1">
-            <span>Free Cash</span>
-            <span className="text-[#cbd5e1]">{100 - marginPct}%</span>
-          </div>
-          <div className="w-full h-1.5 rounded-full bg-[#162032] overflow-hidden">
-            <div
-              className="h-full bg-cyan-400 transition-all duration-300"
-              style={{ width: `${Math.max(100 - marginPct, 5)}%` }}
-            />
-          </div>
+        <div className="flex items-center justify-between mt-1 text-[11px] text-[#666666]">
+          <span>Cash Available</span>
+          <span className="text-[#4caf50] font-mono tabular-nums text-[10px] font-semibold">100% Free</span>
         </div>
       </div>
 
       {/* 3. Allocated Margin */}
-      <div className="p-4 rounded-xl bg-[#0b0f19] border border-[#1a2333] hover:border-[#24324a] transition-colors relative overflow-hidden group">
-        <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-1.5">
-          <span className="font-medium">Allocated Margin</span>
-          <div className="p-1 rounded bg-[#131b2c] text-amber-400">
-            <Layers className="w-3.5 h-3.5" />
+      <div className="p-3 rounded-xl bg-[#191c24] border border-[#232733] hover:border-[#2a2f3e] transition-colors relative overflow-hidden group">
+        <div className="flex items-center justify-between text-xs text-[#9b9b9b] mb-1">
+          <span className="font-medium text-[11px]">Allocated Margin</span>
+          <div className="p-1 rounded bg-[#14171f] text-amber-400 border border-[#232733]">
+            <Layers className="w-3 h-3" />
           </div>
         </div>
-        <div className="text-xl font-bold text-white tracking-tight">
+        <div className="text-lg font-bold font-mono tabular-nums text-white tracking-tight">
           {formatINR(summary.marginUsed, { decimals: 2 })}
         </div>
-        <div className="flex items-center justify-between mt-2 text-xs text-[#64748b]">
-          <span>Open Positions:</span>
-          <span className="font-semibold text-[#cbd5e1]">{openPositionsCount}</span>
+        <div className="flex items-center justify-between mt-1 text-[11px] text-[#666666]">
+          <span>Positions:</span>
+          <span className="font-semibold text-white font-mono tabular-nums">{openPositionsCount} active</span>
         </div>
       </div>
 
       {/* 4. Unrealized P&L */}
-      <div className="p-4 rounded-xl bg-[#0b0f19] border border-[#1a2333] hover:border-[#24324a] transition-colors relative overflow-hidden group">
-        <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-1.5">
-          <span className="font-medium">Unrealized P&L</span>
+      <div className="p-3 rounded-xl bg-[#191c24] border border-[#232733] hover:border-[#2a2f3e] transition-colors relative overflow-hidden group">
+        <div className="flex items-center justify-between text-xs text-[#9b9b9b] mb-1">
+          <span className="font-medium text-[11px]">Unrealized P&L</span>
           <div
-            className={`p-1 rounded ${
+            className={`p-1 rounded border border-[#232733] ${
               isPositiveUnrealized
-                ? "bg-emerald-500/10 text-emerald-400"
-                : "bg-rose-500/10 text-rose-400"
+                ? "bg-[#14171f] text-[#4caf50]"
+                : "bg-[#14171f] text-[#df514c]"
             }`}
           >
-            <Activity className="w-3.5 h-3.5" />
+            <Activity className="w-3 h-3" />
           </div>
         </div>
         <div
-          className={`text-xl font-bold tracking-tight ${
-            isPositiveUnrealized ? "text-emerald-400" : "text-rose-400"
+          className={`text-lg font-bold font-mono tabular-nums tracking-tight ${
+            isPositiveUnrealized ? "text-[#4caf50]" : "text-[#df514c]"
           }`}
         >
           {formatINR(summary.unrealizedPnl, { showSign: true, decimals: 2 })}
         </div>
-        <div className="flex items-center gap-1.5 mt-2 text-xs text-[#64748b]">
-          <span>Margin Return:</span>
+        <div className="flex items-center justify-between mt-1 text-[11px] text-[#666666]">
+          <span>Open Return:</span>
           <span
-            className={`font-semibold ${
-              isPositiveUnrealized ? "text-emerald-400" : "text-rose-400"
+            className={`font-semibold font-mono tabular-nums ${
+              isPositiveUnrealized ? "text-[#4caf50]" : "text-[#df514c]"
             }`}
           >
             {summary.marginUsed > 0
@@ -142,24 +128,24 @@ export function PortfolioCards({ summary, openPositionsCount }: PortfolioCardsPr
       </div>
 
       {/* 5. Realized P&L & Win Rate */}
-      <div className="p-4 rounded-xl bg-[#0b0f19] border border-[#1a2333] hover:border-[#24324a] transition-colors relative overflow-hidden group">
-        <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-1.5">
-          <span className="font-medium">Realized P&L</span>
-          <div className="p-1 rounded bg-[#131b2c] text-purple-400">
-            <Award className="w-3.5 h-3.5" />
+      <div className="p-3 rounded-xl bg-[#191c24] border border-[#232733] hover:border-[#2a2f3e] transition-colors relative overflow-hidden group col-span-2 sm:col-span-1">
+        <div className="flex items-center justify-between text-xs text-[#9b9b9b] mb-1">
+          <span className="font-medium text-[11px]">Realized P&L</span>
+          <div className="p-1 rounded bg-[#14171f] text-[#4184f3] border border-[#232733]">
+            <Award className="w-3 h-3" />
           </div>
         </div>
         <div
-          className={`text-xl font-bold tracking-tight ${
-            isPositiveRealized ? "text-emerald-400" : "text-rose-400"
+          className={`text-lg font-bold font-mono tabular-nums tracking-tight ${
+            isPositiveRealized ? "text-[#4caf50]" : "text-[#df514c]"
           }`}
         >
           {formatINR(summary.realizedPnl, { showSign: true, decimals: 2 })}
         </div>
-        <div className="flex items-center justify-between mt-2 text-xs text-[#64748b]">
+        <div className="flex items-center justify-between mt-1 text-[11px] text-[#666666]">
           <span>Win Rate:</span>
-          <span className="font-semibold text-white">
-            {summary.winRate}% <span className="text-[10px] text-[#64748b]">({summary.winningTrades}/{summary.totalTrades})</span>
+          <span className="font-semibold text-white font-mono tabular-nums">
+            {summary.winRate}% ({summary.winningTrades}/{summary.totalTrades})
           </span>
         </div>
       </div>

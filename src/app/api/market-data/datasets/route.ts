@@ -30,7 +30,8 @@ export async function GET(req: NextRequest) {
 
     if (id) {
       // Return single full dataset
-      const filePath = path.join(DATASETS_DIR, `${id}.json`);
+      const safeId = id.replace(/[\/\\]+/g, "-");
+      const filePath = path.join(DATASETS_DIR, `${safeId}.json`);
       try {
         const fileContent = await fs.readFile(filePath, "utf-8");
         const dataset = JSON.parse(fileContent);
@@ -41,10 +42,26 @@ export async function GET(req: NextRequest) {
           const { data, error } = await supabase
             .from("market_datasets")
             .select("*")
-            .eq("id", id)
+            .or(`id.eq.${id},id.eq.${safeId}`)
             .single();
           if (data && !error) {
-            return NextResponse.json({ status: "success", dataset: data });
+            const normalizedDataset = {
+              id: data.id,
+              symbol: data.symbol,
+              name: data.name,
+              category: data.category,
+              source: data.source,
+              timeframe: data.timeframe,
+              range: data.range || data.stats?.range || "auto",
+              candleCount: data.candle_count ?? data.candleCount ?? (data.candles || []).length,
+              startDate: data.start_date ?? data.startDate,
+              endDate: data.end_date ?? data.endDate,
+              candles: data.candles || [],
+              stats: data.stats || {},
+              createdAt: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
+              updatedAt: data.updated_at ? new Date(data.updated_at).getTime() : Date.now(),
+            };
+            return NextResponse.json({ status: "success", dataset: normalizedDataset });
           }
         }
         return NextResponse.json({ status: "error", message: "Dataset not found" }, { status: 404 });
@@ -113,10 +130,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanSymbol = symbol.toUpperCase().replace(/\s+/g, "");
+    const cleanSymbol = symbol.toUpperCase().trim();
+    const safeSymbolSlug = cleanSymbol.replace(/[\/\s:]+/g, "-").toLowerCase();
     const cleanTf = timeframe || "15m";
     const timestampNow = Date.now();
-    const id = body.id || `ds-${cleanSymbol.toLowerCase()}-${cleanTf}-${timestampNow}`;
+    const id = body.id || `ds-${safeSymbolSlug}-${cleanTf.toLowerCase()}`;
 
     const stats = body.stats || computeDatasetStats(candles);
     const startDate = candles[0]?.time || new Date().toISOString();
@@ -147,9 +165,9 @@ export async function POST(req: NextRequest) {
       await fs.writeFile(datasetPath, datasetJson, "utf-8");
       dataset.sizeBytes = Buffer.byteLength(datasetJson);
 
-      // 2. Update catalog
+      // 2. Update catalog with deduplication
       const catalog = await ensureCatalog();
-      const filteredCatalog = catalog.filter((d) => d.id !== id);
+      const filteredCatalog = catalog.filter((d) => d.id !== id && !(d.symbol === cleanSymbol && d.timeframe === cleanTf));
       const metadataOnly: StoredDataset = {
         ...dataset,
         candles: [], // keep catalog lean
@@ -213,20 +231,21 @@ export async function DELETE(req: NextRequest) {
     }
 
     // 1. Remove from disk
-    const filePath = path.join(DATASETS_DIR, `${id}.json`);
+    const safeId = id.replace(/[\/\\]+/g, "-");
+    const filePath = path.join(DATASETS_DIR, `${safeId}.json`);
     try {
       await fs.unlink(filePath);
     } catch {}
 
     // 2. Remove from catalog
     const catalog = await ensureCatalog();
-    const updated = catalog.filter((d) => d.id !== id);
+    const updated = catalog.filter((d) => d.id !== id && d.id !== safeId);
     await saveCatalog(updated);
 
     // 3. Remove from Supabase
     if (supabase) {
       try {
-        await supabase.from("market_datasets").delete().eq("id", id);
+        await supabase.from("market_datasets").delete().or(`id.eq.${id},id.eq.${safeId}`);
       } catch {}
     }
 

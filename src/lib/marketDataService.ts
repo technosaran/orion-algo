@@ -218,6 +218,22 @@ export function computeDatasetStats(candles: CandleData[]): DatasetStats {
 }
 
 /**
+ * Clamps requested lookback range to limits supported by Yahoo Finance
+ */
+export function clampYahooRange(timeframe: ChartTimeframe, requestedRange?: string): string {
+  const req = requestedRange || "1mo";
+  if (timeframe === "1m") {
+    if (["1mo", "3mo", "6mo", "1y", "2y", "5y"].includes(req)) return "5d";
+    return req;
+  }
+  if (timeframe === "5m" || timeframe === "15m") {
+    if (["3mo", "6mo", "1y", "2y", "5y"].includes(req)) return "1mo";
+    return req;
+  }
+  return req;
+}
+
+/**
  * Fetches real historical OHLCV candles with optional custom range
  */
 export async function getHistoricalCandles(
@@ -226,14 +242,34 @@ export async function getHistoricalCandles(
   limit: number = 60,
   customRange?: string
 ): Promise<CandleData[]> {
-  const cleanSymbol = symbol.replace(" 50", "50").toUpperCase();
-  const conf = SYMBOL_CONFIGS[cleanSymbol] || SYMBOL_CONFIGS[symbol] || {
-    source: "yahoo" as const,
-    ticker: cleanSymbol.includes("NIFTY") ? "^NSEI" : cleanSymbol,
-    name: symbol,
-    category: "stock" as const,
-    fallbackPrice: 100,
-  };
+  const cleanSymbol = symbol.replace(" 50", "50").toUpperCase().trim();
+  
+  // Smart symbol resolver for presets or custom tickers
+  let conf = SYMBOL_CONFIGS[cleanSymbol] || SYMBOL_CONFIGS[symbol];
+  if (!conf) {
+    if (cleanSymbol.includes("USDT") || cleanSymbol.includes("BTC") || cleanSymbol.includes("ETH")) {
+      const ticker = cleanSymbol.replace(/[\/\-_]/g, "");
+      conf = {
+        source: "binance",
+        ticker,
+        name: cleanSymbol,
+        category: "crypto",
+        fallbackPrice: 100,
+      };
+    } else {
+      // Default to NSE stock ticker unless already has exchange suffix
+      const ticker = cleanSymbol.includes(".") || cleanSymbol.startsWith("^") || cleanSymbol.includes("=")
+        ? cleanSymbol
+        : `${cleanSymbol}.NS`;
+      conf = {
+        source: "yahoo",
+        ticker,
+        name: cleanSymbol,
+        category: "stock",
+        fallbackPrice: 100,
+      };
+    }
+  }
 
   if (conf.source === "binance") {
     try {
@@ -273,15 +309,16 @@ export async function getHistoricalCandles(
     }
   } else {
     try {
-      const intervalMap: Record<ChartTimeframe, [string, string]> = {
-        "1m": ["1m", customRange || "1d"],
-        "5m": ["5m", customRange || "5d"],
-        "15m": ["15m", customRange || "1mo"],
-        "1h": ["1h", customRange || "3mo"],
-        "1D": ["1d", customRange || "1y"],
+      const intervalMap: Record<ChartTimeframe, string> = {
+        "1m": "1m",
+        "5m": "5m",
+        "15m": "15m",
+        "1h": "1h",
+        "1D": "1d",
       };
-      const [interval, range] = intervalMap[timeframe] || ["15m", customRange || "1mo"];
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(conf.ticker)}?interval=${interval}&range=${range}`;
+      const interval = intervalMap[timeframe] || "15m";
+      const clampedRange = clampYahooRange(timeframe, customRange);
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(conf.ticker)}?interval=${interval}&range=${clampedRange}`;
       const res = await fetch(url, { headers: YAHOO_HEADERS, next: { revalidate: 15 } });
       if (res.ok) {
         const data = await res.json();

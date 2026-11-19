@@ -79,8 +79,8 @@ export function TradingViewOpenSourceChart({
 
   // Chart view states
   const [chartType, setChartType] = useState<ExtendedChartType>("candlestick");
-  const [showSMA, setShowSMA] = useState<boolean>(true);
-  const [showEMA, setShowEMA] = useState<boolean>(true);
+  const [showSMA, setShowSMA] = useState<boolean>(false);
+  const [showEMA, setShowEMA] = useState<boolean>(false);
   const [showBB, setShowBB] = useState<boolean>(false);
   const [showVolume, setShowVolume] = useState<boolean>(true);
 
@@ -138,32 +138,32 @@ export function TradingViewOpenSourceChart({
       width: container.clientWidth,
       height: 420,
       layout: {
-        background: { type: ColorType.Solid, color: "#080b12" },
-        textColor: "#94a3b8",
+        background: { type: ColorType.Solid, color: "#12141a" },
+        textColor: "#9b9b9b",
         fontSize: 11,
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       },
       grid: {
-        vertLines: { color: "rgba(30, 41, 59, 0.45)" },
-        horzLines: { color: "rgba(30, 41, 59, 0.45)" },
+        vertLines: { color: "rgba(35, 39, 51, 0.6)" },
+        horzLines: { color: "rgba(35, 39, 51, 0.6)" },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: {
-          color: "#475569",
+          color: "#444b58",
           width: 1,
           style: LineStyle.Dashed,
-          labelBackgroundColor: "#1e293b",
+          labelBackgroundColor: "#202430",
         },
         horzLine: {
-          color: "#475569",
+          color: "#444b58",
           width: 1,
           style: LineStyle.Dashed,
-          labelBackgroundColor: "#1e293b",
+          labelBackgroundColor: "#202430",
         },
       },
       timeScale: {
-        borderColor: "#1e293b",
+        borderColor: "#232733",
         timeVisible: true,
         secondsVisible: false,
         barSpacing: 10,
@@ -182,7 +182,7 @@ export function TradingViewOpenSourceChart({
         },
       },
       rightPriceScale: {
-        borderColor: "#1e293b",
+        borderColor: "#232733",
         scaleMargins: {
           top: 0.1,
           bottom: 0.22, // Space reserved for volume bars
@@ -203,34 +203,34 @@ export function TradingViewOpenSourceChart({
 
     chartRef.current = chart;
 
-    // Create Main Series based on active chartType
+    // Create Main Series based on active chartType (Zerodha Kite Palette)
     let mainSeries: ISeriesApi<any>;
     if (chartType === "candlestick") {
       mainSeries = chart.addSeries(CandlestickSeries, {
-        upColor: "#10b981",
-        downColor: "#f43f5e",
-        borderUpColor: "#10b981",
-        borderDownColor: "#f43f5e",
-        wickUpColor: "#10b981",
-        wickDownColor: "#f43f5e",
+        upColor: "#4caf50",
+        downColor: "#df514c",
+        borderUpColor: "#4caf50",
+        borderDownColor: "#df514c",
+        wickUpColor: "#4caf50",
+        wickDownColor: "#df514c",
       });
     } else if (chartType === "area") {
       mainSeries = chart.addSeries(AreaSeries, {
-        topColor: "rgba(16, 185, 129, 0.45)",
-        bottomColor: "rgba(16, 185, 129, 0.0)",
-        lineColor: "#10b981",
+        topColor: "rgba(65, 132, 243, 0.35)",
+        bottomColor: "rgba(65, 132, 243, 0.0)",
+        lineColor: "#4184f3",
         lineWidth: 2,
       });
     } else if (chartType === "bar") {
       mainSeries = chart.addSeries(BarSeries, {
-        upColor: "#10b981",
-        downColor: "#f43f5e",
+        upColor: "#4caf50",
+        downColor: "#df514c",
         openVisible: true,
         thinBars: false,
       });
     } else {
       mainSeries = chart.addSeries(LineSeries, {
-        color: "#10b981",
+        color: "#4184f3",
         lineWidth: 2,
       });
     }
@@ -404,8 +404,8 @@ export function TradingViewOpenSourceChart({
           value: c.volume,
           color:
             c.close >= c.open
-              ? "rgba(16, 185, 129, 0.4)"
-              : "rgba(244, 63, 94, 0.4)",
+              ? "rgba(76, 175, 80, 0.45)"
+              : "rgba(223, 81, 76, 0.45)",
         }));
         volumeSeries.setData(volData);
       } else {
@@ -523,6 +523,10 @@ export function TradingViewOpenSourceChart({
     } catch (err) {
       console.warn("Markers warning:", err);
     }
+
+    if (chartRef.current && sanitizedCandles.length > 0) {
+      chartRef.current.timeScale().fitContent();
+    }
   }, [
     sanitizedCandles,
     chartType,
@@ -564,32 +568,32 @@ export function TradingViewOpenSourceChart({
       slPriceLineRef.current = null;
     }
 
-    // Live Price Line
+    // Live Price Line (Zerodha Kite Style)
     livePriceLineRef.current = series.createPriceLine({
       price: asset.price,
-      color: asset.change24h >= 0 ? "#10b981" : "#f43f5e",
+      color: asset.change24h >= 0 ? "#4caf50" : "#df514c",
       lineWidth: 1,
       lineStyle: LineStyle.Dotted,
       axisLabelVisible: true,
       title: "LIVE",
     });
 
-    // Active Position Entry Price Line
+    // Active Position Entry Price Line (Zerodha Kite Blue)
     if (position && position.entryPrice > 0) {
       entryPriceLineRef.current = series.createPriceLine({
         price: position.entryPrice,
-        color: "#38bdf8",
+        color: "#4184f3",
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
         title: `ENTRY (${position.side}) ₹${position.entryPrice.toFixed(2)}`,
       });
 
-      // Take Profit Line
+      // Take Profit Line (Zerodha Green)
       if (position.takeProfit) {
         tpPriceLineRef.current = series.createPriceLine({
           price: position.takeProfit,
-          color: "#10b981",
+          color: "#4caf50",
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
           axisLabelVisible: true,
@@ -597,11 +601,11 @@ export function TradingViewOpenSourceChart({
         });
       }
 
-      // Stop Loss Line
+      // Stop Loss Line (Zerodha Red)
       if (position.stopLoss) {
         slPriceLineRef.current = series.createPriceLine({
           price: position.stopLoss,
-          color: "#f43f5e",
+          color: "#df514c",
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
           axisLabelVisible: true,
@@ -658,9 +662,9 @@ export function TradingViewOpenSourceChart({
             </span>
           </div>
 
-          {/* OHLCV Inspection Bar */}
+          {/* OHLCV Inspection Bar (Zerodha Kite Numbers & Colors) */}
           {displayData && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#64748b] font-mono">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#9b9b9b] font-mono tabular-nums">
               {displayData.open !== undefined && (
                 <span>
                   O: <strong className="text-white">₹{displayData.open.toFixed(2)}</strong>
@@ -668,12 +672,12 @@ export function TradingViewOpenSourceChart({
               )}
               {displayData.high !== undefined && (
                 <span>
-                  H: <strong className="text-emerald-400">₹{displayData.high.toFixed(2)}</strong>
+                  H: <strong className="text-[#4caf50]">₹{displayData.high.toFixed(2)}</strong>
                 </span>
               )}
               {displayData.low !== undefined && (
                 <span>
-                  L: <strong className="text-rose-400">₹{displayData.low.toFixed(2)}</strong>
+                  L: <strong className="text-[#df514c]">₹{displayData.low.toFixed(2)}</strong>
                 </span>
               )}
               {displayData.close !== undefined && (
@@ -682,18 +686,18 @@ export function TradingViewOpenSourceChart({
                 </span>
               )}
               {displayData.changePercent !== undefined && (
-                <span className={displayData.changePercent >= 0 ? "text-emerald-400 font-semibold" : "text-rose-400 font-semibold"}>
+                <span className={displayData.changePercent >= 0 ? "text-[#4caf50] font-semibold" : "text-[#df514c] font-semibold"}>
                   {displayData.changePercent >= 0 ? "+" : ""}
                   {displayData.changePercent.toFixed(2)}%
                 </span>
               )}
               {displayData.volume !== undefined && (
                 <span className="hidden md:inline">
-                  Vol: <strong className="text-[#94a3b8]">{displayData.volume.toLocaleString()}</strong>
+                  Vol: <strong className="text-[#e0e0e0]">{displayData.volume.toLocaleString()}</strong>
                 </span>
               )}
               {displayData.time && (
-                <span className="text-[#475569] hidden lg:inline">
+                <span className="text-[#666666] hidden lg:inline">
                   [{displayData.time}]
                 </span>
               )}
@@ -704,15 +708,15 @@ export function TradingViewOpenSourceChart({
         {/* Right: Interactive Toolbar Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Timeframe Selector */}
-          <div className="flex items-center bg-[#121824] p-0.5 rounded-lg border border-[#1e293b]">
+          <div className="flex items-center bg-[#14171f] p-0.5 rounded-lg border border-[#232733]">
             {(["1m", "5m", "15m", "1h", "1D"] as const).map((tf) => (
               <button
                 key={tf}
                 onClick={() => onChangeTimeframe(tf)}
                 className={`px-2 py-1 text-xs font-semibold rounded-md transition-all ${
                   timeframe === tf
-                    ? "bg-[#1f2b42] text-white shadow-xs"
-                    : "text-[#64748b] hover:text-[#cbd5e1]"
+                    ? "bg-[#202430] text-[#4184f3] font-bold shadow-xs"
+                    : "text-[#9b9b9b] hover:text-[#e0e0e0]"
                 }`}
               >
                 {tf}
@@ -721,15 +725,15 @@ export function TradingViewOpenSourceChart({
           </div>
 
           {/* Chart Type Toggle */}
-          <div className="flex items-center bg-[#121824] p-0.5 rounded-lg border border-[#1e293b]">
+          <div className="flex items-center bg-[#14171f] p-0.5 rounded-lg border border-[#232733]">
             <button
               onClick={() => setChartType("candlestick")}
               className={`p-1.5 rounded-md text-xs transition-colors ${
                 chartType === "candlestick"
-                  ? "bg-[#1f2b42] text-emerald-400"
-                  : "text-[#64748b] hover:text-white"
+                  ? "bg-[#202430] text-[#4184f3]"
+                  : "text-[#9b9b9b] hover:text-white"
               }`}
-              title="Candlestick (TradingView)"
+              title="Candlestick (Zerodha Kite Style)"
             >
               <BarChart2 className="w-3.5 h-3.5" />
             </button>
@@ -737,8 +741,8 @@ export function TradingViewOpenSourceChart({
               onClick={() => setChartType("area")}
               className={`p-1.5 rounded-md text-xs transition-colors ${
                 chartType === "area"
-                  ? "bg-[#1f2b42] text-cyan-400"
-                  : "text-[#64748b] hover:text-white"
+                  ? "bg-[#202430] text-[#4184f3]"
+                  : "text-[#9b9b9b] hover:text-white"
               }`}
               title="Area Mountain Chart"
             >
@@ -748,8 +752,8 @@ export function TradingViewOpenSourceChart({
               onClick={() => setChartType("bar")}
               className={`p-1.5 rounded-md text-xs transition-colors ${
                 chartType === "bar"
-                  ? "bg-[#1f2b42] text-purple-400"
-                  : "text-[#64748b] hover:text-white"
+                  ? "bg-[#202430] text-[#4184f3]"
+                  : "text-[#9b9b9b] hover:text-white"
               }`}
               title="OHLC Bars"
             >

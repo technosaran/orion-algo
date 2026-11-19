@@ -14,12 +14,16 @@ import {
   Plus,
   Trash2,
   ChevronDown,
+  Zap,
+  Sliders,
 } from "lucide-react";
 import { StrategyConfig } from "@/types/strategy";
 
 interface StrategyHeaderProps {
   strategy: StrategyConfig;
   savedStrategies: StrategyConfig[];
+  isSimpleMode: boolean;
+  onToggleMode: (simple: boolean) => void;
   onUpdateStrategy: (updated: Partial<StrategyConfig>) => void;
   onSelectStrategy: (strat: StrategyConfig) => void;
   onNewBlankStrategy: () => void;
@@ -37,6 +41,8 @@ interface StrategyHeaderProps {
 export function StrategyHeader({
   strategy,
   savedStrategies,
+  isSimpleMode,
+  onToggleMode,
   onUpdateStrategy,
   onSelectStrategy,
   onNewBlankStrategy,
@@ -55,19 +61,47 @@ export function StrategyHeader({
   return (
     <div className="bg-[#0b0e14] border-b border-[#1a2230] px-6 py-4">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Title & Metadata */}
-        <div className="flex items-center gap-4">
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shrink-0">
-            <TrendingUp className="w-6 h-6" />
+        {/* Title & Mode Switcher */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shrink-0">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <div>
+              <input
+                type="text"
+                value={strategy.name}
+                onChange={(e) => onUpdateStrategy({ name: e.target.value })}
+                className="text-xl font-bold text-white bg-transparent border-b border-transparent hover:border-[#2a374a] focus:border-emerald-500/50 focus:outline-none transition-colors px-1 py-0.5 rounded"
+                placeholder="Strategy Name..."
+              />
+            </div>
           </div>
-          <div>
-            <input
-              type="text"
-              value={strategy.name}
-              onChange={(e) => onUpdateStrategy({ name: e.target.value })}
-              className="text-xl font-bold text-white bg-transparent border-b border-transparent hover:border-[#2a374a] focus:border-emerald-500/50 focus:outline-none transition-colors px-1 py-0.5 rounded"
-              placeholder="Strategy Name..."
-            />
+
+          {/* Mode Switcher Pill */}
+          <div className="flex items-center bg-[#131b2a] p-1 rounded-xl border border-[#222e42] shadow-inner">
+            <button
+              onClick={() => onToggleMode(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                isSimpleMode
+                  ? "bg-emerald-500 text-black shadow-md shadow-emerald-500/20"
+                  : "text-[#94a3b8] hover:text-white"
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>Simple Mode</span>
+            </button>
+            <button
+              onClick={() => onToggleMode(false)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                !isSimpleMode
+                  ? "bg-[#1e2a3d] text-white border border-[#2e3e57]"
+                  : "text-[#94a3b8] hover:text-white"
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Advanced Mode</span>
+            </button>
           </div>
         </div>
 

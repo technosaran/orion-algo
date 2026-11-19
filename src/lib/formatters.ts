@@ -77,3 +77,42 @@ export function formatLotOrQty(symbol: string, quantity: number): string {
   }
   return `${Math.round(quantity)} Shares`;
 }
+
+/**
+ * Determines whether an asset is priced in USD vs INR
+ */
+export function isUsdAsset(symbol: string, category?: string): boolean {
+  const s = symbol.toUpperCase();
+  if (category === "crypto" || s.includes("USDT") || s.includes("BTC") || s.includes("ETH") || s.includes("SOL")) {
+    return true;
+  }
+  // US Equities or global futures/commodities (Yahoo Gold/Crude/Silver are COMEX/WTI in USD)
+  if (["AAPL", "TSLA", "NVDA", "MSFT", "SPY", "QQQ", "GOLD", "CRUDEOIL", "SILVER"].includes(s)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Returns currency symbol for instrument ('$' or '₹')
+ */
+export function getCurrencySymbol(symbol: string, category?: string): string {
+  return isUsdAsset(symbol, category) ? "$" : "₹";
+}
+
+/**
+ * Formats asset price with appropriate currency symbol and decimals
+ */
+export function formatAssetPrice(val: number, symbol: string, category?: string): string {
+  if (val === undefined || val === null || isNaN(val)) return "—";
+  const curr = getCurrencySymbol(symbol, category);
+  const isUsd = isUsdAsset(symbol, category);
+  const abs = Math.abs(val);
+  const decimals = abs >= 10000 ? 1 : (abs >= 100 ? 2 : 2);
+
+  const numStr = isUsd
+    ? abs.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+    : abs.toLocaleString("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
+  return `${val < 0 ? "-" : ""}${curr}${numStr}`;
+}

@@ -179,13 +179,13 @@ export const INITIAL_ASSETS: AssetQuote[] = RAW_INITIAL_ASSETS.map((asset) => ({
 }));
 
 /**
- * Creates clean price-anchored historical bars from real price reference
+ * Creates clean price-anchored historical bars with realistic OHLC price action
  */
 export function generateCandlesForSymbol(
   symbol: string,
   currentPrice: number,
   timeframe: ChartTimeframe,
-  count: number = 30,
+  count: number = 35,
   baseTime: number = Date.now()
 ): CandleData[] {
   const intervalMinutes: Record<ChartTimeframe, number> = {
@@ -197,30 +197,49 @@ export function generateCandlesForSymbol(
   };
 
   const stepMs = intervalMinutes[timeframe] * 60 * 1000;
-  const candles: CandleData[] = [];
+  const isCrypto = symbol.includes("USDT") || symbol.includes("BTC");
+  const volPct = isCrypto ? 0.003 : 0.0015; // 0.15% - 0.3% natural spread
 
-  for (let i = count - 1; i >= 0; i--) {
+  const rawBars: { open: number; high: number; low: number; close: number; volume: number; timestamp: number }[] = [];
+  let priceCursor = currentPrice;
+
+  // Walk backward from current real price
+  for (let i = 0; i < count; i++) {
     const timestamp = baseTime - i * stepMs;
-    const date = new Date(timestamp);
+    // Cyclic drift combined with micro-volatility
+    const swing = (Math.sin(i * 0.45) * 0.5 + (Math.sin(i * 1.3) * 0.3) + ((i % 3 === 0 ? 0.4 : -0.3))) * priceCursor * volPct;
+    const close = Number(priceCursor.toFixed(2));
+    const open = Number(Math.max(1, priceCursor - swing).toFixed(2));
+    const wickTop = priceCursor * volPct * (0.3 + (i % 5) * 0.15);
+    const wickBottom = priceCursor * volPct * (0.3 + ((i + 2) % 5) * 0.15);
+    const high = Number((Math.max(open, close) + wickTop).toFixed(2));
+    const low = Number(Math.max(1, Math.min(open, close) - wickBottom).toFixed(2));
+    const volume = Math.floor(1500 + Math.abs(Math.sin(i)) * 6000);
+
+    rawBars.push({ open, high, low, close, volume, timestamp });
+    priceCursor = open;
+  }
+
+  // Oldest first
+  rawBars.reverse();
+
+  return rawBars.map((bar) => {
+    const date = new Date(bar.timestamp);
     const timeStr =
       timeframe === "1D"
         ? date.toLocaleDateString("en-IN", { month: "short", day: "numeric" })
         : date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
-    // Anchor strictly to current real price with minimal tick drift
-    const close = Number(currentPrice.toFixed(2));
-    candles.push({
+    return {
       time: timeStr,
-      timestamp,
-      open: close,
-      high: close,
-      low: close,
-      close: close,
-      volume: 1000,
-    });
-  }
-
-  return candles;
+      timestamp: bar.timestamp,
+      open: bar.open,
+      high: bar.high,
+      low: bar.low,
+      close: bar.close,
+      volume: bar.volume,
+    };
+  });
 }
 
 /**

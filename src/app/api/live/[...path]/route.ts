@@ -11,6 +11,8 @@ let fallbackStatus = {
   broker: null as string | null,
   killSwitchTripped: false,
   isSquareOffTime: false,
+  isMarketOpen: false,
+  marketSession: "CLOSED" as "OPEN" | "CLOSED" | "SQUARE_OFF",
   dailyRealizedLoss: 0.0,
   maxDailyLossLimit: 10000.0,
 };
@@ -25,6 +27,28 @@ let fallbackFunds = {
 let fallbackPositions: any[] = [];
 let fallbackOrders: any[] = [];
 
+function getMarketState() {
+  const now = new Date();
+  const ist = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const day = ist.getDay(); // 0 = Sun, 1 = Mon, ..., 5 = Fri, 6 = Sat
+  const isWeekday = day >= 1 && day <= 5;
+  const mins = ist.getHours() * 60 + ist.getMinutes();
+
+  // Indian Equity/F&O Market hours: 09:15 to 15:30 IST (555 to 930 mins)
+  // MIS Square-Off window: 15:15 to 15:30 IST (915 to 930 mins)
+  const isMarketOpen = isWeekday && mins >= 555 && mins < 930;
+  const isSquareOff = isWeekday && mins >= 915 && mins < 930;
+
+  let sessionStatus: "OPEN" | "CLOSED" | "SQUARE_OFF" = "CLOSED";
+  if (isSquareOff) {
+    sessionStatus = "SQUARE_OFF";
+  } else if (isMarketOpen) {
+    sessionStatus = "OPEN";
+  }
+
+  return { isMarketOpen, isSquareOff, sessionStatus };
+}
+
 async function forwardToBackend(
   req: NextRequest,
   pathSegments: string[],
@@ -33,50 +57,57 @@ async function forwardToBackend(
   const subpath = pathSegments.join("/");
   const targetUrl = `${BACKEND_URL}/api/v1/live/${subpath}`;
 
+  let bodyStr: string | undefined = undefined;
+  if (method !== "GET" && method !== "HEAD") {
+    try {
+      bodyStr = await req.text();
+    } catch {
+      bodyStr = undefined;
+    }
+  }
+
   try {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
 
-    let body: string | undefined = undefined;
-    if (method !== "GET" && method !== "HEAD") {
-      try {
-        body = await req.text();
-      } catch {
-        body = undefined;
-      }
-    }
-
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3500);
+    const timeout = setTimeout(() => controller.abort(), 1000); // 1-second timeout for responsive fallback
 
     const res = await fetch(targetUrl, {
       method,
       headers,
-      body,
+      body: bodyStr,
       signal: controller.signal,
     });
     clearTimeout(timeout);
 
     const json = await res.json();
     return NextResponse.json(json, { status: res.status });
-  } catch (err) {
+  } catch {
     // Backend unreachable: graceful fallback to simulated RMS mode
-    return handleFallback(subpath, method, req);
+    return handleFallback(subpath, method, bodyStr);
   }
 }
 
-async function handleFallback(subpath: string, method: string, req: NextRequest) {
-  if (subpath === "status" && method === "GET") {
-    // Calculate if past 15:15 IST
-    const now = new Date();
-    const ist = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    const mins = ist.getHours() * 60 + ist.getMinutes();
-    const isSquareOff = mins >= 15 * 60 + 15;
+async function handleFallback(subpath: string, method: string, rawBody?: string) {
+  let body: any = {};
+  if (rawBody) {
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      body = {};
+    }
+  }
 
+  const marketState = getMarketState();
+
+  if (subpath === "status" && method === "GET") {
     return NextResponse.json({
       ...fallbackStatus,
-      isSquareOffTime: isSquareOff,
+      isSquareOffTime: marketState.isSquareOff,
+      isMarketOpen: marketState.isMarketOpen,
+      marketSession: marketState.sessionStatus,
       backendMode: "simulated_local",
     });
   }
@@ -100,29 +131,25 @@ async function handleFallback(subpath: string, method: string, req: NextRequest)
   }
 
   if (subpath === "connect" && method === "POST") {
-    try {
-      const data = await req.json();
-      const brokerName =
-        data.broker?.toLowerCase() === "angel_one"
-          ? "Angel One"
-          : "Zerodha Kite";
+    const brokerName =
+      body.mode === "sandbox" || !body.broker
+        ? "AlgoX Sandbox"
+        : body.broker?.toLowerCase() === "angel_one"
+        ? "Angel One"
+        : body.broker?.toLowerCase() === "zerodha"
+        ? "Zerodha Kite"
+        : "AlgoX Sandbox";
 
-      fallbackStatus.connected = true;
-      fallbackStatus.broker = brokerName;
-      fallbackFunds.connected = true;
+    fallbackStatus.connected = true;
+    fallbackStatus.broker = brokerName;
+    fallbackFunds.connected = true;
 
-      return NextResponse.json({
-        status: "success",
-        broker: brokerName,
-        connected: true,
-        message: `${brokerName} session active in local sandbox mode.`,
-      });
-    } catch {
-      return NextResponse.json(
-        { status: "error", message: "Invalid request payload" },
-        { status: 400 }
-      );
-    }
+    return NextResponse.json({
+      status: "success",
+      broker: brokerName,
+      connected: true,
+      message: `${brokerName} session active in local sandbox mode.`,
+    });
   }
 
   if (subpath === "disconnect" && method === "POST") {
@@ -167,6 +194,14 @@ async function handleFallback(subpath: string, method: string, req: NextRequest)
     });
   }
 
+  if (subpath === "positions/close" && method === "POST") {
+    const symbol = body.symbol;
+    if (symbol) {
+      fallbackPositions = fallbackPositions.filter((p) => p.tradingsymbol !== symbol);
+    }
+    return NextResponse.json({ status: "success", message: `Position ${symbol || ""} closed.` });
+  }
+
   if (subpath === "orders" && method === "POST") {
     if (fallbackStatus.killSwitchTripped) {
       return NextResponse.json(
@@ -175,76 +210,104 @@ async function handleFallback(subpath: string, method: string, req: NextRequest)
       );
     }
 
-    try {
-      const body = await req.json();
-      const newOrder = {
-        order_id: `LIVE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        symbol: body.symbol,
-        exchange: body.exchange || "NSE",
-        transaction_type: body.transaction_type,
-        order_type: body.order_type || "MARKET",
-        quantity: body.quantity,
-        price: body.price || 1000.0,
-        product_type: body.product_type || "INTRADAY",
-        status: "COMPLETE",
-        created_at: new Date().toISOString(),
-      };
-
-      fallbackOrders.unshift(newOrder);
-
-      // Add to positions
-      const existing = fallbackPositions.find(
-        (p) => p.tradingsymbol === body.symbol
-      );
-      if (existing) {
-        if (body.transaction_type === "BUY") {
-          existing.netqty += body.quantity;
-        } else {
-          existing.netqty -= body.quantity;
-        }
-      } else {
-        fallbackPositions.push({
-          tradingsymbol: body.symbol,
-          exchange: body.exchange || "NSE",
-          producttype: body.product_type || "INTRADAY",
-          netqty: body.transaction_type === "BUY" ? body.quantity : -body.quantity,
-          buyavgprice: body.price || 1000.0,
-          ltp: body.price || 1000.0,
-          pnl: 0.0,
-        });
-      }
-
-      return NextResponse.json({
-        status: "success",
-        order_id: newOrder.order_id,
-        message: "Order placed successfully via RMS validation gateway.",
-      });
-    } catch {
+    if (!body || !body.symbol) {
       return NextResponse.json(
-        { detail: "Failed to parse order payload" },
+        { detail: "Invalid order parameters" },
         { status: 400 }
       );
     }
+
+    const price = Number(body.price) || 1000.0;
+    const qty = Number(body.quantity) || 1;
+    const notional = price * qty;
+    // 10% margin for F&O indices, 20% for intraday equities, 100% for delivery
+    const isFoIndex = ["NIFTY50", "BANKNIFTY", "CRUDEOIL", "GOLD"].includes(body.symbol);
+    const marginMultiplier = isFoIndex
+      ? 0.1
+      : body.product_type === "DELIVERY"
+      ? 1.0
+      : 0.2;
+    const requiredMargin = notional * marginMultiplier;
+
+    if (requiredMargin > fallbackFunds.availableMargin) {
+      return NextResponse.json(
+        {
+          detail: `RMS Rejected: Insufficient Available Margin. Required ₹${requiredMargin.toLocaleString(
+            "en-IN",
+            { maximumFractionDigits: 0 }
+          )}, available ₹${fallbackFunds.availableMargin.toLocaleString("en-IN", {
+            maximumFractionDigits: 0,
+          })}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Deduct margin
+    fallbackFunds.availableMargin = Math.max(
+      0,
+      fallbackFunds.availableMargin - requiredMargin
+    );
+
+    const newOrder = {
+      order_id: `LIVE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      symbol: body.symbol,
+      exchange: body.exchange || "NSE",
+      transaction_type: body.transaction_type || "BUY",
+      order_type: body.order_type || "MARKET",
+      quantity: qty,
+      price: price,
+      product_type: body.product_type || "INTRADAY",
+      status: "COMPLETE",
+      created_at: new Date().toISOString(),
+    };
+
+    fallbackOrders.unshift(newOrder);
+
+    // Add or update position
+    const existing = fallbackPositions.find(
+      (p) =>
+        p.tradingsymbol === body.symbol &&
+        p.producttype === (body.product_type || "INTRADAY")
+    );
+    if (existing) {
+      if (body.transaction_type === "BUY") {
+        existing.netqty += qty;
+      } else {
+        existing.netqty -= qty;
+      }
+    } else {
+      fallbackPositions.unshift({
+        tradingsymbol: body.symbol,
+        exchange: body.exchange || "NSE",
+        producttype: body.product_type || "INTRADAY",
+        netqty: body.transaction_type === "BUY" ? qty : -qty,
+        buyavgprice: price,
+        ltp: price,
+        pnl: 0.0,
+      });
+    }
+
+    return NextResponse.json({
+      status: "success",
+      order_id: newOrder.order_id,
+      message: "Order placed successfully via RMS validation gateway.",
+    });
   }
 
   if (subpath === "rms/config" && method === "POST") {
-    try {
-      const body = await req.json();
-      if (body.max_daily_loss != null) {
-        fallbackStatus.maxDailyLossLimit = body.max_daily_loss;
-      }
-      return NextResponse.json({
-        status: "success",
-        rms: {
-          maxDailyLoss: fallbackStatus.maxDailyLossLimit,
-          maxCapitalPerTradePct: 0.2,
-          maxOpenPositions: 4,
-          autoSquareOffTime: "15:15",
-        },
-      });
-    } catch {
-      return NextResponse.json({ status: "error" }, { status: 400 });
+    if (body.max_daily_loss != null) {
+      fallbackStatus.maxDailyLossLimit = body.max_daily_loss;
     }
+    return NextResponse.json({
+      status: "success",
+      rms: {
+        maxDailyLoss: fallbackStatus.maxDailyLossLimit,
+        maxCapitalPerTradePct: 0.2,
+        maxOpenPositions: 4,
+        autoSquareOffTime: "15:15",
+      },
+    });
   }
 
   return NextResponse.json({ status: "not_found" }, { status: 404 });

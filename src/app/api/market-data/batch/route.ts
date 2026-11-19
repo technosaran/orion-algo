@@ -34,15 +34,17 @@ export async function POST(req: NextRequest) {
         const candles = await getHistoricalCandles(sym, timeframe, limit, range);
         if (candles && candles.length > 0) {
           const stats = computeDatasetStats(candles);
-          const cleanSymbol = sym.toUpperCase().replace(/\s+/g, "");
+          const cleanSymbol = sym.toUpperCase().trim();
+          const safeSymbolSlug = cleanSymbol.replace(/[\/\s:]+/g, "-").toLowerCase();
+          const id = `ds-${safeSymbolSlug}-${timeframe.toLowerCase()}`;
+
           const conf = SYMBOL_CONFIGS[cleanSymbol] || {
-            name: sym,
-            category: cleanSymbol.includes("USDT") ? "crypto" : "stock",
+            name: cleanSymbol,
+            category: cleanSymbol.includes("USDT") || cleanSymbol.includes("BTC") ? "crypto" : "stock",
             source: cleanSymbol.includes("USDT") ? "binance" : "yahoo",
           };
 
           const timestampNow = Date.now();
-          const id = `ds-${cleanSymbol.toLowerCase()}-${timeframe}-${timestampNow}`;
 
           const dataset: StoredDataset = {
             id,
@@ -68,7 +70,10 @@ export async function POST(req: NextRequest) {
               await fs.writeFile(filePath, JSON.stringify(dataset, null, 2), "utf-8");
 
               const metaOnly = { ...dataset, candles: [] };
-              existingCatalog = [metaOnly, ...existingCatalog.filter((d) => d.id !== id)];
+              existingCatalog = [
+                metaOnly,
+                ...existingCatalog.filter((d) => d.id !== id && !(d.symbol === cleanSymbol && d.timeframe === timeframe))
+              ];
             } catch (fsErr) {
               console.warn("Local dataset write skipped (serverless environment):", fsErr);
             }

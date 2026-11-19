@@ -163,6 +163,9 @@ export async function deleteStoredDataset(id: string): Promise<boolean> {
  * Header: Timestamp,Date,Open,High,Low,Close,Volume
  */
 export function exportDatasetToCSV(dataset: StoredDataset): string {
+  if (!dataset || !dataset.candles || !Array.isArray(dataset.candles) || dataset.candles.length === 0) {
+    throw new Error(`Dataset "${dataset?.name || dataset?.symbol || "Unknown"}" has no candle records to export.`);
+  }
   const headers = ["Timestamp", "Date", "Open", "High", "Low", "Close", "Volume"];
   const rows = dataset.candles.map((c) => [
     c.timestamp,
@@ -178,14 +181,29 @@ export function exportDatasetToCSV(dataset: StoredDataset): string {
 
 /**
  * Triggers a browser file download of the dataset in CSV format
+ * Auto-resolves full candle data if passed a summary dataset
  */
-export function downloadDatasetCSV(dataset: StoredDataset): void {
-  const csv = exportDatasetToCSV(dataset);
+export async function downloadDatasetCSV(dataset: StoredDataset): Promise<void> {
+  let full = dataset;
+  if (!full.candles || full.candles.length === 0) {
+    const fetched = await getDatasetById(dataset.id);
+    if (fetched && fetched.candles && fetched.candles.length > 0) {
+      full = fetched;
+    }
+  }
+
+  if (!full.candles || full.candles.length === 0) {
+    alert(`Cannot export CSV: No candle bars available for ${dataset.symbol} (${dataset.timeframe}).`);
+    return;
+  }
+
+  const csv = exportDatasetToCSV(full);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${dataset.symbol.toLowerCase()}_${dataset.timeframe}_dataset.csv`;
+  const safeSym = dataset.symbol.replace(/[\/\\]+/g, "-").toLowerCase();
+  a.download = `${safeSym}_${dataset.timeframe}_dataset.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -194,14 +212,24 @@ export function downloadDatasetCSV(dataset: StoredDataset): void {
 
 /**
  * Triggers a browser file download of the dataset in JSON format
+ * Auto-resolves full candle data if passed a summary dataset
  */
-export function downloadDatasetJSON(dataset: StoredDataset): void {
-  const json = JSON.stringify(dataset, null, 2);
+export async function downloadDatasetJSON(dataset: StoredDataset): Promise<void> {
+  let full = dataset;
+  if (!full.candles || full.candles.length === 0) {
+    const fetched = await getDatasetById(dataset.id);
+    if (fetched && fetched.candles && fetched.candles.length > 0) {
+      full = fetched;
+    }
+  }
+
+  const json = JSON.stringify(full, null, 2);
   const blob = new Blob([json], { type: "application/json;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${dataset.symbol.toLowerCase()}_${dataset.timeframe}_dataset.json`;
+  const safeSym = dataset.symbol.replace(/[\/\\]+/g, "-").toLowerCase();
+  a.download = `${safeSym}_${dataset.timeframe}_dataset.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

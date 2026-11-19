@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runClientBacktest, Candle } from "../engine";
+import { runClientBacktest, runServerOrClientBacktest, STRATEGY_PRESETS, Candle } from "../engine";
 import { BacktestConfig } from "../types";
 
 describe("Backtest Execution Engine (Phase 2)", () => {
@@ -356,5 +356,55 @@ describe("Backtest Execution Engine (Phase 2)", () => {
     expect(result.trades.length).toBe(1);
     expect(result.trades[0].exitReason).toBe("End of Backtest");
     expect(result.trades[0].exitTime).toBe("2026-01-01T10:30:00.000Z");
+  });
+
+  // ---------------------------------------------------------------------------
+  // 9. Integration Orchestrator & Lookback Range Verification
+  // ---------------------------------------------------------------------------
+  it("executes default backtest with full dateRangeDays without 0-trade truncation", async () => {
+    const config: BacktestConfig = {
+      strategy: "sma_crossover",
+      symbol: "NIFTY50",
+      timeframe: "1h",
+      initialCapital: 500000,
+      dateRangeDays: 90,
+      slippagePct: 0.05,
+      feePct: 0.075,
+      leverage: 1.0,
+      stopLossPct: 2.5,
+      takeProfitPct: 6.0,
+      trailingStopPct: 1.5,
+      strategyParams: { fast_period: 20, slow_period: 50 },
+    };
+
+    const result = await runServerOrClientBacktest(config, false);
+    expect(result.equityCurve.length).toBeGreaterThan(300); // 90 days of 1h has >300 candles
+    expect(result.trades.length).toBeGreaterThan(0);
+    expect(result.summary.totalTrades).toBeGreaterThan(0);
+    expect(result.isSynthetic).toBe(true);
+    expect(result.dataSource).toBe("SIMULATED (NSE)");
+  });
+
+  it("verifies all strategy presets produce non-zero trades with their configured lookback", async () => {
+    for (const preset of STRATEGY_PRESETS) {
+      const cfg: BacktestConfig = {
+        strategy: preset.config.strategy || "sma_crossover",
+        symbol: preset.config.symbol || "NIFTY50",
+        timeframe: preset.config.timeframe || "1h",
+        initialCapital: preset.config.initialCapital || 500000,
+        dateRangeDays: preset.config.dateRangeDays || 90,
+        slippagePct: 0.05,
+        feePct: 0.075,
+        leverage: preset.config.leverage || 1.0,
+        stopLossPct: preset.config.stopLossPct ?? 2.5,
+        takeProfitPct: preset.config.takeProfitPct ?? 6.0,
+        trailingStopPct: preset.config.trailingStopPct ?? null,
+        strategyParams: preset.config.strategyParams || {},
+      };
+
+      const result = await runServerOrClientBacktest(cfg, false);
+      expect(result.trades.length).toBeGreaterThan(0);
+      expect(result.equityCurve.length).toBeGreaterThan(50);
+    }
   });
 });

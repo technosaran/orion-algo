@@ -21,6 +21,7 @@ import {
 } from "@/lib/strategies-service";
 
 import { StrategyHeader } from "@/components/strategy-builder/StrategyHeader";
+import { SimpleStrategyBuilder } from "@/components/strategy-builder/SimpleStrategyBuilder";
 import { GeneralInfoSection } from "@/components/strategy-builder/GeneralInfoSection";
 import { EntryConditionsSection } from "@/components/strategy-builder/EntryConditionsSection";
 import { ExitConditionsSection } from "@/components/strategy-builder/ExitConditionsSection";
@@ -106,6 +107,9 @@ export default function StrategyBuilderPage() {
   const [strategy, setStrategy] = useState<StrategyConfig>(() => createBlankStrategy());
   const [savedStrategies, setSavedStrategies] = useState<StrategyConfig[]>([]);
   const [dbSource, setDbSource] = useState<"database" | "local">("local");
+
+  // Mode state: Simple Mode by default for clean, zero-jargon builder
+  const [isSimpleMode, setIsSimpleMode] = useState<boolean>(true);
 
   // Backtest result state (null initially - NO dummy data)
   const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
@@ -303,11 +307,13 @@ export default function StrategyBuilderPage() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#080a0f] text-[#cbd5e1]">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#12141a] text-[#e0e0e0] font-sans">
       {/* Top Header */}
       <StrategyHeader
         strategy={strategy}
         savedStrategies={savedStrategies}
+        isSimpleMode={isSimpleMode}
+        onToggleMode={setIsSimpleMode}
         onUpdateStrategy={handleUpdateStrategy}
         onSelectStrategy={handleSelectStrategy}
         onNewBlankStrategy={handleNewBlankStrategy}
@@ -322,90 +328,107 @@ export default function StrategyBuilderPage() {
         dbSource={dbSource}
       />
 
-      {/* Section Sub-Navigation Tabs */}
-      <div className="bg-[#0b0e14] border-b border-[#1a2230] px-6 py-2.5 flex items-center justify-between gap-4 overflow-x-auto select-none">
-        <div className="flex items-center gap-1.5 shrink-0">
-          {navSections.map((sec) => {
-            const Icon = sec.icon;
-            const isActive = activeTab === sec.id;
-            return (
-              <button
-                key={sec.id}
-                onClick={() => setActiveTab(sec.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  isActive
-                    ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-semibold"
-                    : "text-[#94a3b8] hover:text-white hover:bg-[#131b2a] border border-transparent"
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400" : "text-[#64748b]"}`} />
-                <span>{sec.label}</span>
-                {sec.id === "5" && backtestResult && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="hidden lg:flex items-center gap-2 text-xs text-[#64748b]">
-          <span>Strategy Builder</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-[#94a3b8] font-mono">{strategy.name}</span>
-        </div>
-      </div>
-
-      {/* Main Content Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {(activeTab === "all" || activeTab === "1") && (
-          <GeneralInfoSection
+      {/* When in Simple Mode, show the clean 3-step intuitive builder */}
+      {isSimpleMode ? (
+        <div className="flex-1 overflow-y-auto p-6">
+          <SimpleStrategyBuilder
             strategy={strategy}
             onChange={handleUpdateStrategy}
-          />
-        )}
-
-        {(activeTab === "all" || activeTab === "2") && (
-          <EntryConditionsSection
-            groups={strategy.entryGroups}
-            onChange={(groups) => handleUpdateStrategy({ entryGroups: groups })}
-            direction={strategy.direction}
-            timeframe={strategy.timeframe}
-          />
-        )}
-
-        {(activeTab === "all" || activeTab === "3") && (
-          <ExitConditionsSection
-            riskConfig={strategy.riskManagement}
-            onChange={(risk) =>
-              handleUpdateStrategy({
-                riskManagement: { ...strategy.riskManagement, ...risk },
-              })
-            }
-          />
-        )}
-
-        {(activeTab === "all" || activeTab === "4") && (
-          <PositionSizingSection
-            config={strategy.positionSizing}
-            onChange={(sizing) =>
-              handleUpdateStrategy({
-                positionSizing: { ...strategy.positionSizing, ...sizing },
-              })
-            }
-            initialCapital={strategy.initialCapital}
-            symbol={strategy.symbol}
-          />
-        )}
-
-        {(activeTab === "all" || activeTab === "5") && (
-          <BacktestResultsSection
-            result={backtestResult}
-            isBacktesting={isBacktesting}
             onRunBacktest={handleRunBacktest}
-            strategyName={strategy.name}
+            isBacktesting={isBacktesting}
+            backtestResult={backtestResult}
+            onSelectTemplate={handleSelectTemplate}
+            onSwitchToAdvanced={() => setIsSimpleMode(false)}
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          {/* Section Sub-Navigation Tabs (Advanced Mode only) */}
+          <div className="bg-[#0b0e14] border-b border-[#1a2230] px-6 py-2.5 flex items-center justify-between gap-4 overflow-x-auto select-none">
+            <div className="flex items-center gap-1.5 shrink-0">
+              {navSections.map((sec) => {
+                const Icon = sec.icon;
+                const isActive = activeTab === sec.id;
+                return (
+                  <button
+                    key={sec.id}
+                    onClick={() => setActiveTab(sec.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      isActive
+                        ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-semibold"
+                        : "text-[#94a3b8] hover:text-white hover:bg-[#131b2a] border border-transparent"
+                    }`}
+                  >
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? "text-emerald-400" : "text-[#64748b]"}`} />
+                    <span>{sec.label}</span>
+                    {sec.id === "5" && backtestResult && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="hidden lg:flex items-center gap-2 text-xs text-[#64748b]">
+              <span>Advanced Strategy Builder</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+              <span className="text-[#94a3b8] font-mono">{strategy.name}</span>
+            </div>
+          </div>
+
+          {/* Main Content Scroll Area (Advanced Mode) */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {(activeTab === "all" || activeTab === "1") && (
+              <GeneralInfoSection
+                strategy={strategy}
+                onChange={handleUpdateStrategy}
+              />
+            )}
+
+            {(activeTab === "all" || activeTab === "2") && (
+              <EntryConditionsSection
+                groups={strategy.entryGroups}
+                onChange={(groups) => handleUpdateStrategy({ entryGroups: groups })}
+                direction={strategy.direction}
+                timeframe={strategy.timeframe}
+              />
+            )}
+
+            {(activeTab === "all" || activeTab === "3") && (
+              <ExitConditionsSection
+                riskConfig={strategy.riskManagement}
+                onChange={(risk) =>
+                  handleUpdateStrategy({
+                    riskManagement: { ...strategy.riskManagement, ...risk },
+                  })
+                }
+              />
+            )}
+
+            {(activeTab === "all" || activeTab === "4") && (
+              <PositionSizingSection
+                config={strategy.positionSizing}
+                onChange={(sizing) =>
+                  handleUpdateStrategy({
+                    positionSizing: { ...strategy.positionSizing, ...sizing },
+                  })
+                }
+                initialCapital={strategy.initialCapital}
+                symbol={strategy.symbol}
+              />
+            )}
+
+            {(activeTab === "all" || activeTab === "5") && (
+              <BacktestResultsSection
+                result={backtestResult}
+                isBacktesting={isBacktesting}
+                onRunBacktest={handleRunBacktest}
+                strategyName={strategy.name}
+              />
+            )}
+          </div>
+        </>
+      )}
 
       {/* Modals */}
       <TemplatesModal

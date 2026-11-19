@@ -159,6 +159,8 @@ export const SYMBOL_BASE_PRICES: Record<string, number> = {
   ICICIBANK: 1583.6,
   SBIN: 1080.0,
   TATAMOTORS: 810.0,
+  CRUDEOIL: 5840.0,
+  GOLD: 76250.0,
 };
 
 /**

@@ -111,11 +111,11 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
   };
 
   return (
-    <div className="bg-[#0b0e14] border border-[#1a2230] rounded-xl p-5 shadow-lg flex flex-col">
+    <div className="bg-[#191c24] border border-[#232733] rounded-xl p-5 shadow-lg flex flex-col font-sans">
       {/* Table Header & Toolbar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-[#1a2230] gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-[#232733] gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          <div className="p-2 rounded-lg bg-[#4184f3]/10 text-[#4184f3] border border-[#4184f3]/20">
             <History className="w-4 h-4" />
           </div>
           <div>
@@ -123,11 +123,11 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
               <h3 className="text-base font-semibold text-white tracking-wide">
                 Trade History
               </h3>
-              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[#131b2a] text-[#94a3b8] border border-[#1e293b]">
+              <span className="text-xs font-mono tabular-nums px-2 py-0.5 rounded-full bg-[#14171f] text-[#9b9b9b] border border-[#232733]">
                 {trades.length} Executed
               </span>
             </div>
-            <p className="text-xs text-[#64748b]">
+            <p className="text-xs text-[#666666]">
               Trade entries, exits, fees, and realized P&L
             </p>
           </div>
@@ -137,7 +137,7 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           {/* Search */}
           <div className="relative flex-1 sm:w-44">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-[#64748b]" />
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-[#666666]" />
             <input
               type="text"
               placeholder="Search trades..."
@@ -146,12 +146,12 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full bg-[#131b2a] border border-[#1e293b] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-[#64748b] focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-[#14171f] border border-[#232733] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-[#666666] focus:outline-none focus:border-[#4184f3]"
             />
           </div>
 
           {/* Filter Pills */}
-          <div className="flex items-center bg-[#131b2a] p-1 rounded-lg border border-[#1e293b] text-xs">
+          <div className="flex items-center bg-[#14171f] p-1 rounded-lg border border-[#232733] text-xs">
             <button
               onClick={() => {
                 setFilter("ALL");
@@ -159,8 +159,8 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
               }}
               className={`px-2.5 py-1 rounded font-medium transition-all ${
                 filter === "ALL"
-                  ? "bg-indigo-500/20 text-indigo-400 font-semibold"
-                  : "text-[#64748b] hover:text-white"
+                  ? "bg-[#202430] text-[#4184f3] font-semibold border border-[#2a2f3e]"
+                  : "text-[#9b9b9b] hover:text-white"
               }`}
             >
               All
@@ -172,8 +172,8 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
               }}
               className={`px-2.5 py-1 rounded font-medium transition-all ${
                 filter === "WIN"
-                  ? "bg-emerald-500/20 text-emerald-400 font-semibold"
-                  : "text-[#64748b] hover:text-white"
+                  ? "bg-[#4caf50]/20 text-[#4caf50] font-semibold border border-[#4caf50]/30"
+                  : "text-[#9b9b9b] hover:text-white"
               }`}
             >
               Wins
@@ -185,8 +185,8 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
               }}
               className={`px-2.5 py-1 rounded font-medium transition-all ${
                 filter === "LOSS"
-                  ? "bg-rose-500/20 text-rose-400 font-semibold"
-                  : "text-[#64748b] hover:text-white"
+                  ? "bg-[#df514c]/20 text-[#df514c] font-semibold border border-[#df514c]/30"
+                  : "text-[#9b9b9b] hover:text-white"
               }`}
             >
               Losses
@@ -196,10 +196,10 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
           {/* CSV Export Button */}
           <button
             onClick={exportCSV}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#131b2a] hover:bg-[#1a253a] text-xs text-[#cbd5e1] hover:text-white border border-[#1e293b] rounded-lg transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#14171f] hover:bg-[#202430] text-xs text-[#9b9b9b] hover:text-white border border-[#232733] rounded-lg transition-all"
             title="Download CSV report"
           >
-            <Download className="w-3.5 h-3.5 text-cyan-400" />
+            <Download className="w-3.5 h-3.5 text-[#4184f3]" />
             <span>CSV</span>
           </button>
         </div>
@@ -209,7 +209,7 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
       <div className="overflow-x-auto mt-4 -mx-5 px-5">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
-            <tr className="border-b border-[#1a2230] text-[#64748b] font-medium">
+            <tr className="border-b border-[#232733] text-[#9b9b9b] font-medium uppercase tracking-wider text-[11px]">
               <th className="py-2.5 px-3">#</th>
               <th className="py-2.5 px-3">Direction</th>
               <th className="py-2.5 px-3">Entry Time</th>
@@ -233,10 +233,10 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
               <th className="py-2.5 px-3 text-right">Fees</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#131b2a]">
+          <tbody className="divide-y divide-[#232733]">
             {pageTrades.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-8 text-center text-[#64748b]">
+                <td colSpan={11} className="py-8 text-center text-[#666666]">
                   No trades match the current filter criteria.
                 </td>
               </tr>
@@ -247,16 +247,16 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
                 return (
                   <tr
                     key={trade.id}
-                    className="hover:bg-[#131b2a]/50 transition-colors font-mono"
+                    className="hover:bg-[#202430] transition-colors font-mono tabular-nums"
                   >
-                    <td className="py-2.5 px-3 text-[#64748b]">{trade.id}</td>
+                    <td className="py-2.5 px-3 text-[#666666]">{trade.id}</td>
                     <td className="py-2.5 px-3">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#4184f3]/10 text-[#4184f3] border border-[#4184f3]/25 font-sans">
                         <ArrowUpRight className="w-3 h-3" />
                         {trade.type}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-[#94a3b8] text-[11px]">
+                    <td className="py-2.5 px-3 text-[#9b9b9b] text-[11px]">
                       {new Date(trade.entryTime).toLocaleDateString(undefined, {
                         month: "numeric",
                         day: "numeric",
@@ -264,7 +264,7 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
                         minute: "2-digit",
                       })}
                     </td>
-                    <td className="py-2.5 px-3 text-[#94a3b8] text-[11px]">
+                    <td className="py-2.5 px-3 text-[#9b9b9b] text-[11px]">
                       {new Date(trade.exitTime).toLocaleDateString(undefined, {
                         month: "numeric",
                         day: "numeric",
@@ -278,12 +278,12 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
                     <td className="py-2.5 px-3 text-right text-white font-medium">
                       ₹{trade.exitPrice.toLocaleString("en-IN")}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-[#94a3b8]">
+                    <td className="py-2.5 px-3 text-right text-[#9b9b9b]">
                       {trade.size}
                     </td>
                     <td
                       className={`py-2.5 px-3 text-right font-bold ${
-                        isWin ? "text-emerald-400" : "text-rose-400"
+                        isWin ? "text-[#4caf50]" : "text-[#df514c]"
                       }`}
                     >
                       {isWin ? "+" : ""}
@@ -291,7 +291,7 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
                     </td>
                     <td
                       className={`py-2.5 px-3 text-right font-bold ${
-                        isWin ? "text-emerald-400" : "text-rose-400"
+                        isWin ? "text-[#4caf50]" : "text-[#df514c]"
                       }`}
                     >
                       {isWin ? "+" : ""}
@@ -301,12 +301,12 @@ export function TradesTable({ trades, symbol }: TradesTableProps) {
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-sans ${
                           trade.exitReason === "Take Profit"
-                            ? "bg-emerald-500/10 text-emerald-400"
+                            ? "bg-[#4caf50]/10 text-[#4caf50] border border-[#4caf50]/30"
                             : trade.exitReason === "Stop Loss"
-                            ? "bg-rose-500/10 text-rose-400"
+                            ? "bg-[#df514c]/10 text-[#df514c] border border-[#df514c]/30"
                             : trade.exitReason === "Trailing Stop"
-                            ? "bg-amber-500/10 text-amber-400"
-                            : "bg-[#1e293b] text-[#94a3b8]"
+                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                            : "bg-[#202430] text-[#9b9b9b] border border-[#2a2f3e]"
                         }`}
                       >
                         {trade.exitReason === "Take Profit" && (

@@ -1,5 +1,120 @@
 [
   {
+    "id": "ds-gold-15m",
+    "symbol": "GOLD",
+    "name": "Gold Spot (COMEX/MCX)",
+    "category": "commodity",
+    "source": "yahoo",
+    "timeframe": "15m",
+    "range": "1y",
+    "candleCount": 300,
+    "startDate": "03:45 pm",
+    "endDate": "09:29 pm",
+    "candles": [],
+    "stats": {
+      "high": 3894,
+      "low": 3672.6,
+      "avgClose": 3806.21,
+      "avgVolume": 2058,
+      "volatilityPct": 1.62,
+      "atr": 8.66
+    },
+    "createdAt": 1795105243690,
+    "updatedAt": 1795105243690
+  },
+  {
+    "id": "ds-nifty50-15m",
+    "symbol": "NIFTY50",
+    "name": "NIFTY 50 Index",
+    "category": "index",
+    "source": "yahoo",
+    "timeframe": "15m",
+    "range": "1y",
+    "candleCount": 300,
+    "startDate": "09:30 am",
+    "endDate": "03:30 pm",
+    "candles": [],
+    "stats": {
+      "high": 25514.3,
+      "low": 23600.6,
+      "avgClose": 24891.12,
+      "avgVolume": 0,
+      "volatilityPct": 2.28,
+      "atr": 49.63
+    },
+    "createdAt": 1795105241728,
+    "updatedAt": 1795105241728
+  },
+  {
+    "id": "ds-eth-usdt-15m",
+    "symbol": "ETH/USDT",
+    "name": "Ethereum / Tether",
+    "category": "crypto",
+    "source": "binance",
+    "timeframe": "15m",
+    "range": "1y",
+    "candleCount": 300,
+    "startDate": "07:00 pm",
+    "endDate": "09:45 pm",
+    "candles": [],
+    "stats": {
+      "high": 1866.89,
+      "low": 1732.83,
+      "avgClose": 1803.14,
+      "avgVolume": 3355,
+      "volatilityPct": 1.17,
+      "atr": 8.87
+    },
+    "createdAt": 1795105239166,
+    "updatedAt": 1795105239166
+  },
+  {
+    "id": "ds-btc-usdt-15m",
+    "symbol": "BTC/USDT",
+    "name": "Bitcoin / Tether",
+    "category": "crypto",
+    "source": "binance",
+    "timeframe": "15m",
+    "range": "1y",
+    "candleCount": 300,
+    "startDate": "07:00 pm",
+    "endDate": "09:45 pm",
+    "candles": [],
+    "stats": {
+      "high": 65696.16,
+      "low": 62062.97,
+      "avgClose": 64123.72,
+      "avgVolume": 230,
+      "volatilityPct": 1.21,
+      "atr": 248.38
+    },
+    "createdAt": 1795105236209,
+    "updatedAt": 1795105236209
+  },
+  {
+    "id": "ds-reliance-15m-1795103873207",
+    "symbol": "RELIANCE",
+    "name": "Reliance Industries",
+    "category": "stock",
+    "source": "yahoo",
+    "timeframe": "15m",
+    "range": "1mo",
+    "candleCount": 500,
+    "startDate": "09:15 am",
+    "endDate": "03:15 pm",
+    "candles": [],
+    "stats": {
+      "high": 1382.2,
+      "low": 1152.6,
+      "avgClose": 1274.64,
+      "avgVolume": 772636,
+      "volatilityPct": 5.76,
+      "atr": 5.12
+    },
+    "createdAt": 1795103873207,
+    "updatedAt": 1795103873207
+  },
+  {
     "id": "ds-gold-1h-1794664243561",
     "symbol": "GOLD",
     "name": "GOLD (1H) Training Dataset",
@@ -64,27 +179,5 @@
     },
     "createdAt": 1794664242880,
     "updatedAt": 1794664242880
-  },
-  {
-    "id": "ds-nifty50-15m-1794664242502",
-    "symbol": "NIFTY50",
-    "name": "NIFTY50 (15M) Training Dataset",
-    "category": "index",
-    "source": "yahoo",
-    "timeframe": "15m",
-    "range": "1mo",
-    "candleCount": 526,
-    "startDate": "14 Oct 09:15 am",
-    "endDate": "13 Nov 03:30 pm",
-    "candles": [],
-    "stats": {
-      "high": 25424.35,
-      "low": 22372.15,
-      "avgClose": 23538.79,
-      "avgVolume": 0,
-      "volatilityPct": 4.16
-    },
-    "createdAt": 1794664242502,
-    "updatedAt": 1794664242502
   }
 ]

@@ -41,6 +41,7 @@ export function BacktestHeader({
               </h1>
               {dataSource && (
                 <span
+                  title={!isSynthetic ? "Connected to live market data" : "Running on verified offline NSE simulated dataset"}
                   className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border font-semibold ${
                     !isSynthetic
                       ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
@@ -62,7 +63,7 @@ export function BacktestHeader({
           <button
             onClick={onRun}
             disabled={isRunning}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#080a0f] font-semibold text-sm shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.98]"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#4184f3] hover:bg-[#3874d8] text-white font-semibold text-sm shadow-md shadow-[#4184f3]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.98]"
           >
             {isRunning ? (
               <>
@@ -80,9 +81,9 @@ export function BacktestHeader({
       </div>
 
       {/* Preset Strategy Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none">
-        <span className="text-xs text-[#64748b] font-medium flex items-center gap-1 shrink-0">
-          <Sparkles className="w-3 h-3 text-amber-400" />
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none font-sans">
+        <span className="text-xs text-[#666666] font-medium flex items-center gap-1 shrink-0">
+          <Sparkles className="w-3 h-3 text-[#ff5722]" />
           Presets:
         </span>
         {STRATEGY_PRESETS.map((preset) => {
@@ -93,8 +94,8 @@ export function BacktestHeader({
               onClick={() => onSelectPreset(preset)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-all shrink-0 border ${
                 isActive
-                  ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-300 font-semibold shadow-sm"
-                  : "bg-[#0b0e14] border-[#1a2230] text-[#94a3b8] hover:text-white hover:border-[#2a384e]"
+                  ? "bg-[#202430] border-[#4184f3]/40 text-[#4184f3] font-semibold shadow-xs"
+                  : "bg-[#191c24] border-[#232733] text-[#9b9b9b] hover:text-white hover:bg-[#202430]"
               }`}
             >
               <span>{preset.title}</span>

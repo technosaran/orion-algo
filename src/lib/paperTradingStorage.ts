@@ -379,13 +379,24 @@ export function resetPaperState(): StoredPaperState {
   return fresh;
 }
 
-export function calculateSummary(state: StoredPaperState): PortfolioSummary {
+export function calculateSummary(state: StoredPaperState, quotes?: { symbol: string; price: number }[]): PortfolioSummary {
   const { positions, history, cashBalance, initialBalance } = state;
+  const quoteMap = new Map((quotes || []).map((q) => [q.symbol, q.price]));
 
-  const marginUsed = positions.reduce((acc, p) => acc + p.marginUsed, 0);
-  const unrealizedPnl = positions.reduce((acc, p) => acc + p.unrealizedPnl, 0);
+  let unrealizedPnl = 0;
+  let marginUsed = 0;
+
+  for (const pos of positions) {
+    marginUsed += pos.marginUsed;
+    const livePrice = quoteMap.get(pos.symbol) ?? pos.currentPrice ?? pos.entryPrice;
+    const isLong = pos.side === "LONG";
+    const pnl = isLong
+      ? (livePrice - pos.entryPrice) * pos.quantity
+      : (pos.entryPrice - livePrice) * pos.quantity;
+    unrealizedPnl += pnl;
+  }
+
   const realizedPnl = history.reduce((acc, t) => acc + t.realizedPnl, 0);
-
   const totalEquity = cashBalance + marginUsed + unrealizedPnl;
   const freeBuyingPower = Math.max(0, cashBalance);
 
@@ -409,4 +420,4 @@ export function calculateSummary(state: StoredPaperState): PortfolioSummary {
   };
 }
 
-export const computePortfolioSummary = (state: StoredPaperState, _quotes?: any) => calculateSummary(state);
+export const computePortfolioSummary = (state: StoredPaperState, quotes?: { symbol: string; price: number }[]) => calculateSummary(state, quotes);
