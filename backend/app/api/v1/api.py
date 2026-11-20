@@ -6,6 +6,8 @@ from app.api.v1.endpoints import (
     strategies,
     market_data,
     live_trading,
+    nse_terminal,
+    options_lab,
 )
 
 api_router = APIRouter()
@@ -15,3 +17,6 @@ api_router.include_router(paper_trading.router, prefix="/paper-trading", tags=["
 api_router.include_router(strategies.router, prefix="/strategies", tags=["strategies"])
 api_router.include_router(market_data.router, tags=["market-data"])
 api_router.include_router(live_trading.router, tags=["live-trading"])
+api_router.include_router(nse_terminal.router, tags=["nse-terminal"])
+api_router.include_router(options_lab.router, tags=["options-lab"])
+

@@ -125,12 +125,36 @@ export default function DashboardPage() {
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <Link
-              href="/strategy-builder"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#4184f3] hover:bg-[#3874d8] text-white font-semibold text-sm transition-all shadow-md shadow-[#4184f3]/25 active:scale-[0.98]"
+              href="/nse-terminal"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition-all shadow-md shadow-emerald-500/25 active:scale-[0.98]"
             >
-              <Sliders className="w-4 h-4" />
-              <span>Strategy Builder</span>
+              <TrendingUp className="w-4 h-4" />
+              <span>NSE Terminal</span>
               <ArrowRight className="w-4 h-4" />
+            </Link>
+
+            <Link
+              href="/options-lab"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14171f] hover:bg-[#202430] border border-[#232733] text-[#e0e0e0] hover:text-white font-medium text-sm transition-all"
+            >
+              <Layers className="w-4 h-4 text-cyan-400" />
+              <span>Options Lab</span>
+            </Link>
+
+            <Link
+              href="/screener"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14171f] hover:bg-[#202430] border border-[#232733] text-[#e0e0e0] hover:text-white font-medium text-sm transition-all"
+            >
+              <Sliders className="w-4 h-4 text-[#4184f3]" />
+              <span>Screener</span>
+            </Link>
+
+            <Link
+              href="/strategy-builder"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14171f] hover:bg-[#202430] border border-[#232733] text-[#e0e0e0] hover:text-white font-medium text-sm transition-all"
+            >
+              <Sliders className="w-4 h-4 text-[#4184f3]" />
+              <span>Strategy Builder</span>
             </Link>
 
             <Link
@@ -154,15 +178,15 @@ export default function DashboardPage() {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14171f] hover:bg-[#202430] border border-[#232733] text-[#e0e0e0] hover:text-white font-medium text-sm transition-all"
             >
               <ShieldAlert className="w-4 h-4 text-[#df514c]" />
-              <span>Live Trading & RMS</span>
+              <span>Live Trading</span>
             </Link>
 
             <Link
-              href="/data"
+              href="/analytics"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#14171f] hover:bg-[#202430] border border-[#232733] text-[#e0e0e0] hover:text-white font-medium text-sm transition-all"
             >
-              <Database className="w-4 h-4 text-[#4184f3]" />
-              <span>Data Hub</span>
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <span>Journal & Analytics</span>
             </Link>
           </div>
         </div>
