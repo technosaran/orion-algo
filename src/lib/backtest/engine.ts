@@ -106,7 +106,7 @@ export const STRATEGY_PRESETS: PresetStrategy[] = [
     config: {
       strategy: "sma_crossover",
       symbol: "NIFTY50",
-      timeframe: "1d",
+      timeframe: "1h",
       dateRangeDays: 180,
       initialCapital: 500000,
       leverage: 1.0,
@@ -131,7 +131,7 @@ export const STRATEGY_PRESETS: PresetStrategy[] = [
       stopLossPct: 1.5,
       takeProfitPct: 4.5,
       trailingStopPct: null, // Trailing stop is OFF by default
-      strategyParams: { rsi_period: 14, oversold: 30, overbought: 70 },
+      strategyParams: { rsi_period: 14, oversold: 35, overbought: 65 },
     },
   },
   {
