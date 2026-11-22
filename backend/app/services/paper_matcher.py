@@ -1,6 +1,7 @@
 """
 Orion Algo - Server-Side Paper Trading Matching Engine
-Matches LIMIT/STOP orders against live market ticks, monitors SL/TP, and runs algo strategies.
+Matches LIMIT/STOP orders against live market ticks, monitors SL/TP,
+executes trailing stops, enforces pre-trade RMS guards, and runs autonomous multi-strategy signals.
 """
 
 import time
@@ -10,6 +11,7 @@ from typing import Dict, Any, List, Optional
 from app.db.supabase import get_supabase_client
 from app.services.market_data_service import get_all_real_quotes, get_real_historical_candles
 from app.services.condition_evaluator import IndicatorStore
+from app.brokers.risk_manager import risk_manager
 
 logger = logging.getLogger("paper_matcher")
 
@@ -79,12 +81,13 @@ def get_trades_history() -> List[Dict[str, Any]]:
 
 async def process_paper_engine_tick() -> Dict[str, Any]:
     """
-    Core Tick Worker:
+    Core Autonomous Tick Worker:
     1. Fetches latest live quotes for all symbols.
-    2. Matches pending LIMIT / STOP orders if price condition is reached.
-    3. Checks Stop Loss and Take Profit on open positions.
-    4. Updates unrealized P&L on open positions.
-    5. If bot_active, runs strategy signals on recent candles and fires paper orders.
+    2. Enforces active 15:15 IST MIS square-off.
+    3. Matches pending LIMIT / STOP orders if price condition is reached.
+    4. Computes trailing stop-loss advancement and updates unrealized P&L.
+    5. Checks Stop Loss and Take Profit exits on open positions.
+    6. If bot_active, runs strategy signals on recent candles and executes paper orders with RMS guards.
     """
     supabase = get_supabase_client()
     account = get_paper_account()
@@ -98,10 +101,25 @@ async def process_paper_engine_tick() -> Dict[str, Any]:
     closed_positions = 0
     bot_signals_fired = 0
 
-    # 1. Update Positions Unrealized P&L and check SL/TP
+    # 1. Active 3:15 PM IST MIS Square-Off Check
+    is_square_off_time = risk_manager.is_intraday_square_off_time()
+    if is_square_off_time and positions:
+        logger.warning("🚨 [RMS 15:15 Cutoff] Auto-squaring off all open intraday (MIS) positions.")
+        for pos in list(positions):
+            prod_type = str(pos.get("product_type", "MIS")).upper()
+            if prod_type in ["MIS", "INTRADAY"]:
+                cur_p = price_map.get(pos["symbol"].upper(), float(pos.get("current_price", pos["entry_price"])))
+                close_position(pos["id"], "AUTO_MIS_SQUARE_OFF", cur_p)
+                closed_positions += 1
+        # Refresh positions after square-off
+        positions = get_open_positions()
+
+    # 2. Update Positions Unrealized P&L, Trailing Stop Ratchet, and check SL/TP
+    total_unrealized_pnl = 0.0
+
     for pos in positions:
         sym = pos["symbol"].upper()
-        current_price = price_map.get(sym, pos.get("current_price", pos["entry_price"]))
+        current_price = price_map.get(sym, float(pos.get("current_price", pos["entry_price"])))
         entry_price = float(pos["entry_price"])
         qty = float(pos["quantity"])
         side = pos["side"].upper()
@@ -113,11 +131,28 @@ async def process_paper_engine_tick() -> Dict[str, Any]:
             unrealized = (entry_price - current_price) * qty
             unrealized_pct = ((entry_price - current_price) / entry_price) * 100.0
 
-        # Check Stop Loss / Take Profit
+        total_unrealized_pnl += unrealized
+
+        # Dynamic Trailing Stop Loss Ratchet
         sl = float(pos["stop_loss"]) if pos.get("stop_loss") else None
         tp = float(pos["take_profit"]) if pos.get("take_profit") else None
-        exit_reason = None
+        trailing_enabled = pos.get("trailing_stop_enabled", True)
+        trail_pct = float(pos.get("trailing_stop_pct", 0.015))
 
+        if trailing_enabled and sl is not None:
+            updated_sl = risk_manager.calculate_trailing_stop(
+                side=side,
+                entry_price=entry_price,
+                current_price=current_price,
+                current_sl=sl,
+                trail_pct=trail_pct,
+            )
+            if updated_sl != sl:
+                sl = updated_sl
+                pos["stop_loss"] = sl
+
+        # Check Stop Loss / Take Profit Hit
+        exit_reason = None
         if side == "LONG":
             if sl and current_price <= sl:
                 exit_reason = "STOP_LOSS"
@@ -136,15 +171,21 @@ async def process_paper_engine_tick() -> Dict[str, Any]:
         else:
             # Update position in DB
             try:
-                supabase.table("paper_positions").update({
+                update_payload = {
                     "current_price": current_price,
                     "unrealized_pnl": round(unrealized, 2),
                     "unrealized_pnl_percent": round(unrealized_pct, 2),
-                }).eq("id", pos["id"]).execute()
+                }
+                if sl is not None:
+                    update_payload["stop_loss"] = sl
+                supabase.table("paper_positions").update(update_payload).eq("id", pos["id"]).execute()
             except Exception as e:
                 logger.error(f"Failed to update position {pos['id']}: {e}")
 
-    # 2. Match Pending LIMIT Orders
+    # Update floating drawdown in RMS to protect against runaway floating losses
+    risk_manager.update_floating_drawdown(total_unrealized_pnl)
+
+    # 3. Match Pending LIMIT Orders
     pending_orders = [o for o in orders if o.get("status") == "PENDING"]
     for o in pending_orders:
         sym = o["symbol"].upper()
@@ -169,59 +210,97 @@ async def process_paper_engine_tick() -> Dict[str, Any]:
                 filled = True
 
         if filled:
-            # Fill the order and open position
             fill_pending_order(o["id"], cur_p)
             matched_orders += 1
 
-    # 3. If Algo Bot is Active, Evaluate Strategy
-    if account.get("bot_active"):
-        strat_id = account.get("bot_strategy_id", "rsi_mean_reversion")
+    # 4. If Algo Bot is Active, Evaluate Multi-Strategy Signals (LONG and SHORT)
+    if account.get("bot_active") and not is_square_off_time and not risk_manager.kill_switch_tripped:
+        strat_id = account.get("bot_strategy_id", "vwap_supertrend")
         target_symbol = "NIFTY50"
         cur_price = price_map.get(target_symbol, 24500.0)
 
-        # Check if we already have an open position on target_symbol
+        # Check if an open position already exists on target_symbol
         has_pos = any(p["symbol"].upper() == target_symbol for p in positions)
 
         if not has_pos:
-            candles = await get_real_historical_candles(target_symbol, timeframe="5m", limit=30)
-            if len(candles) >= 15:
+            candles = await get_real_historical_candles(target_symbol, timeframe="5m", limit=35)
+            if len(candles) >= 20:
                 store = IndicatorStore(candles)
                 last_idx = len(candles) - 1
 
-                should_buy = False
+                signal_side: Optional[str] = None
                 trigger_note = ""
 
-                if strat_id == "rsi_mean_reversion":
-                    rsi_val = store.get_value({"type": "RSI", "params": {"period": 14}, "offset": 1}, last_idx)
-                    if rsi_val and rsi_val < 32.0:
-                        should_buy = True
-                        trigger_note = f"RSI Oversold ({round(rsi_val, 1)} < 32)"
+                if strat_id == "vwap_supertrend":
+                    st = store.get_value({"type": "SUPERTREND", "params": {"period": 10, "multiplier": 3.0}}, last_idx)
+                    vwap_val = store.get_value({"type": "VWAP"}, last_idx)
+                    if st and vwap_val:
+                        if cur_price > vwap_val and st.get("trend") == 1:
+                            signal_side = "BUY"
+                            trigger_note = "Price > VWAP & Supertrend Bullish"
+                        elif cur_price < vwap_val and st.get("trend") == -1:
+                            signal_side = "SELL"
+                            trigger_note = "Price < VWAP & Supertrend Bearish"
+
                 elif strat_id == "ema_crossover":
                     e9 = store.get_value({"type": "EMA", "params": {"period": 9}, "offset": 1}, last_idx)
                     e21 = store.get_value({"type": "EMA", "params": {"period": 21}, "offset": 1}, last_idx)
-                    if e9 and e21 and e9 > e21:
-                        should_buy = True
-                        trigger_note = f"EMA(9) Bullish Cross EMA(21)"
-                elif strat_id == "bb_volatility_scalper":
-                    lower_bb = store.get_value({"type": "BOLLINGER_BANDS", "params": {"period": 20}, "subField": "lower", "offset": 1}, last_idx)
-                    if lower_bb and cur_price <= lower_bb * 1.002:
-                        should_buy = True
-                        trigger_note = f"Bollinger Lower Band Bounce"
+                    if e9 and e21:
+                        if e9 > e21:
+                            signal_side = "BUY"
+                            trigger_note = "EMA(9) Bullish Cross EMA(21)"
+                        elif e9 < e21:
+                            signal_side = "SELL"
+                            trigger_note = "EMA(9) Bearish Cross EMA(21)"
 
-                if should_buy and float(account.get("cash_balance", 0)) > cur_price * 10:
+                elif strat_id == "rsi_mean_reversion":
+                    rsi_val = store.get_value({"type": "RSI", "params": {"period": 14}, "offset": 1}, last_idx)
+                    if rsi_val:
+                        if rsi_val < 32.0:
+                            signal_side = "BUY"
+                            trigger_note = f"RSI Oversold ({round(rsi_val, 1)} < 32)"
+                        elif rsi_val > 68.0:
+                            signal_side = "SELL"
+                            trigger_note = f"RSI Overbought ({round(rsi_val, 1)} > 68)"
+
+                elif strat_id == "donchian_breakout":
+                    highs = [c["high"] for c in candles[last_idx-20:last_idx]]
+                    lows = [c["low"] for c in candles[last_idx-20:last_idx]]
+                    highest_20 = max(highs) if highs else cur_price
+                    lowest_20 = min(lows) if lows else cur_price
+                    if cur_price >= highest_20:
+                        signal_side = "BUY"
+                        trigger_note = f"20-Period High Breakout (₹{cur_price:.2f} >= ₹{highest_20:.2f})"
+                    elif cur_price <= lowest_20:
+                        signal_side = "SELL"
+                        trigger_note = f"20-Period Low Breakdown (₹{cur_price:.2f} <= ₹{lowest_20:.2f})"
+
+                if signal_side and float(account.get("cash_balance", 0)) > cur_price * 10:
                     alloc = float(account["cash_balance"]) * 0.10
                     qty = max(1, int(alloc / cur_price))
-                    execute_paper_market_order(
+
+                    # Mathematically computed initial Stop-Loss and Take-Profit
+                    if signal_side == "BUY":
+                        sl_price = round(cur_price * 0.985, 2)  # 1.5% SL
+                        tp_price = round(cur_price * 1.030, 2)  # 3.0% TP (1:2 Risk/Reward)
+                    else:
+                        sl_price = round(cur_price * 1.015, 2)
+                        tp_price = round(cur_price * 0.970, 2)
+
+                    order_res = execute_paper_market_order(
                         symbol=target_symbol,
-                        side="BUY",
+                        side=signal_side,
                         quantity=qty,
                         price=cur_price,
-                        take_profit=round(cur_price * 1.03, 2),
-                        stop_loss=round(cur_price * 0.98, 2),
+                        take_profit=tp_price,
+                        stop_loss=sl_price,
                         is_algo=True,
                         note=f"Algo Bot [{strat_id}]: {trigger_note}",
+                        trailing_stop_enabled=True,
+                        trailing_stop_pct=0.015,
                     )
-                    bot_signals_fired += 1
+                    if order_res.get("status") == "FILLED":
+                        bot_signals_fired += 1
 
     return {
         "status": "success",
@@ -241,17 +320,36 @@ def execute_paper_market_order(
     stop_loss: Optional[float] = None,
     is_algo: bool = False,
     note: Optional[str] = None,
+    product_type: str = "MIS",
+    trailing_stop_enabled: bool = True,
+    trailing_stop_pct: float = 0.015,
 ) -> Dict[str, Any]:
-    """Places and instantly fills a paper market order, updating cash and positions."""
+    """
+    Places and fills a paper market order subject to strict pre-trade RMS guards:
+    - Blocks orders if Kill Switch is active, consecutive loss cooldown is running, or risk ceiling is reached.
+    - Accurately deducts initial margin without double-deducting brokerage on entry.
+    """
     supabase = get_supabase_client()
-    order_id = f"ord-{int(time.time()*1000)}"
-    order_cost = price * quantity
-    brokerage = 20.0  # ₹20 flat brokerage
-
-    # Update account cash: margin is blocked for both LONG and SHORT positions
     account = get_paper_account()
-    cur_cash = float(account["cash_balance"])
-    new_cash = cur_cash - (order_cost + brokerage)
+    cur_cash = float(account.get("cash_balance", 1000000.0))
+    positions = get_open_positions()
+
+    order_cost = price * quantity
+
+    # PRE-TRADE RMS VALIDATION
+    rms_check = risk_manager.validate_pre_trade(
+        order_cost=order_cost,
+        available_cash=cur_cash,
+        current_open_positions_count=len(positions),
+    )
+    if not rms_check["allowed"]:
+        logger.warning(f"🚨 [RMS Intercept] Order rejected for {symbol}: {rms_check['reason']}")
+        return {"status": "rejected", "reason": rms_check["reason"]}
+
+    order_id = f"ord-{int(time.time()*1000)}"
+
+    # Update account cash: margin blocked (brokerage is deducted on roundtrip close)
+    new_cash = max(0.0, cur_cash - order_cost)
 
     # 1. Insert Order
     order_row = {
@@ -282,6 +380,9 @@ def execute_paper_market_order(
         "margin_used": round(order_cost, 2),
         "take_profit": take_profit,
         "stop_loss": stop_loss,
+        "product_type": product_type,
+        "trailing_stop_enabled": trailing_stop_enabled,
+        "trailing_stop_pct": trailing_stop_pct,
         "unrealized_pnl": 0.0,
         "unrealized_pnl_percent": 0.0,
     }
@@ -335,21 +436,27 @@ def fill_pending_order(order_id: str, current_price: float):
             "margin_used": round(total_val, 2),
             "take_profit": order.get("take_profit"),
             "stop_loss": order.get("stop_loss"),
+            "product_type": order.get("product_type", "MIS"),
+            "trailing_stop_enabled": True,
+            "trailing_stop_pct": 0.015,
             "unrealized_pnl": 0.0,
             "unrealized_pnl_percent": 0.0,
         }).execute()
 
-        # Deduct margin and brokerage from paper account
+        # Deduct margin from paper account
         acc = get_paper_account()
         cash = float(acc.get("cash_balance", 1000000.0))
-        new_cash = max(0.0, cash - (total_val + 20.0))
+        new_cash = max(0.0, cash - total_val)
         supabase.table("paper_account").update({"cash_balance": round(new_cash, 2)}).eq("id", "default").execute()
     except Exception as e:
         logger.error(f"Error filling pending order {order_id}: {e}")
 
 
 def close_position(position_id: str, reason: str = "MANUAL_CLOSE", exit_price: Optional[float] = None):
-    """Closes an open position, records realized P&L into paper_trades, and updates cash."""
+    """
+    Closes an open position, records realized P&L into paper_trades, updates cash,
+    and reports trade outcome to RMS for emotion-free cooldown & daily loss tracking.
+    """
     supabase = get_supabase_client()
     try:
         res = supabase.table("paper_positions").select("*").eq("id", position_id).execute()
@@ -361,12 +468,16 @@ def close_position(position_id: str, reason: str = "MANUAL_CLOSE", exit_price: O
         qty = float(pos["quantity"])
         side = pos["side"].upper()
 
-        if side == "LONG":
-            realized_pnl = (p_exit - entry_price) * qty - 40.0  # ₹40 roundtrip brokerage
+        # Standard Indian ₹20 Buy + ₹20 Sell = ₹40 roundtrip flat brokerage
+        if side in ["LONG", "BUY"]:
+            realized_pnl = (p_exit - entry_price) * qty - 40.0
             pnl_pct = ((p_exit - entry_price) / entry_price) * 100.0
         else:
             realized_pnl = (entry_price - p_exit) * qty - 40.0
             pnl_pct = ((entry_price - p_exit) / entry_price) * 100.0
+
+        # Inform RMS of trade outcome (updates daily loss, consecutive loss counter, anti-revenge cooldown)
+        risk_manager.record_trade_outcome(realized_pnl)
 
         # 1. Insert into paper_trades
         trade_id = f"trade-{int(time.time()*1000)}"
@@ -391,7 +502,7 @@ def close_position(position_id: str, reason: str = "MANUAL_CLOSE", exit_price: O
         account = get_paper_account()
         cash = float(account.get("cash_balance", 1000000.0))
         margin_used = float(pos.get("margin_used", entry_price * qty))
-        new_cash = cash + margin_used + realized_pnl
+        new_cash = max(0.0, cash + margin_used + realized_pnl)
         supabase.table("paper_account").update({"cash_balance": round(new_cash, 2)}).eq("id", "default").execute()
 
         return trade_row
