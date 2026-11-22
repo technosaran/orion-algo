@@ -14,6 +14,23 @@ from app.brokers.base import BrokerAdapter, BrokerOrderRequest
 logger = logging.getLogger("angel_one")
 
 
+ANGEL_TOKEN_MAP: Dict[str, str] = {
+    "NIFTY": "26000",
+    "NIFTY50": "26000",
+    "NIFTY 50": "26000",
+    "BANKNIFTY": "26009",
+    "RELIANCE": "2885",
+    "HDFCBANK": "1333",
+    "TCS": "11536",
+    "INFY": "1594",
+    "ICICIBANK": "4963",
+    "SBIN": "3045",
+    "TATAMOTORS": "3456",
+    "CRUDEOIL": "236402",
+    "GOLD": "236405",
+}
+
+
 class AngelOneAdapter(BrokerAdapter):
     """
     Angel One SmartAPI Adapter.
@@ -138,10 +155,12 @@ class AngelOneAdapter(BrokerAdapter):
             return {"status": False, "message": "Broker not connected."}
 
         url = f"{self.BASE_URL}/rest/secure/angelbroking/order/v1/placeOrder"
+        clean_sym = order.symbol.upper().replace(".NS", "").replace("^", "").strip()
+        token = ANGEL_TOKEN_MAP.get(clean_sym, "26000")
         payload = {
             "variety": "NORMAL",
             "tradingsymbol": order.symbol,
-            "symboltoken": "99926000",  # Map dynamically in prod
+            "symboltoken": token,
             "transactiontype": order.transaction_type.upper(),
             "exchange": order.exchange.upper(),
             "ordertype": order.order_type.upper(),

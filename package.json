@@ -8,6 +8,7 @@
     "dev:frontend": "next dev",
     "test": "vitest run",
     "test:backend": "cd backend && .venv\\Scripts\\python.exe tests_verification.py",
+    "test:all": "backend\\.venv\\Scripts\\python.exe backend\\run_all_tests.py",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

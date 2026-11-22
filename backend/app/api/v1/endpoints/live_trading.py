@@ -115,12 +115,19 @@ async def place_live_order(order: LiveOrderRequest):
     funds = await _active_broker.get_funds()
     avail_cash = float(funds.get("availableMargin") or funds.get("netCash") or 50000.0)
     positions = await _active_broker.get_positions()
+    open_pos_count = len([p for p in positions if int(p.get("quantity") or p.get("netqty") or 0) != 0])
 
-    # Estimate order value
-    est_cost = (order.price if order.price > 0 else 1000.0) * order.quantity
+    # Estimate realistic order value from live quotes if MARKET order
+    est_price = order.price
+    if est_price <= 0:
+        quotes = await get_all_real_quotes()
+        price_map = {q["symbol"].upper(): q["price"] for q in quotes}
+        est_price = price_map.get(order.symbol.upper(), 24500.0 if "NIFTY" in order.symbol.upper() else 1000.0)
+
+    est_cost = est_price * order.quantity
 
     # 2. RMS Pre-Trade Validation
-    rms_check = risk_manager.validate_pre_trade(est_cost, avail_cash, len(positions))
+    rms_check = risk_manager.validate_pre_trade(est_cost, avail_cash, open_pos_count)
     if not rms_check["allowed"]:
         raise HTTPException(status_code=403, detail=f"RMS Rejected: {rms_check['reason']}")
 

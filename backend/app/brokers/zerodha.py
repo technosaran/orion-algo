@@ -87,13 +87,14 @@ class ZerodhaAdapter(BrokerAdapter):
     async def place_order(self, order: BrokerOrderRequest) -> Dict[str, Any]:
         """Submits regular order."""
         url = f"{self.BASE_URL}/orders/regular"
+        prod = "MIS" if order.product_type in ["MIS", "INTRADAY"] else ("NRML" if order.product_type == "NRML" else "CNC")
         payload = {
             "tradingsymbol": order.symbol,
             "exchange": order.exchange,
             "transaction_type": order.transaction_type,
             "order_type": order.order_type,
             "quantity": str(order.quantity),
-            "product": "MIS" if order.product_type == "INTRADAY" else "CNC",
+            "product": prod,
             "price": str(order.price) if order.price > 0 else "0",
             "validity": "DAY",
             "tag": order.tag,
@@ -116,7 +117,16 @@ class ZerodhaAdapter(BrokerAdapter):
                 return {"status": "error", "message": str(e)}
 
     async def square_off_all(self) -> Dict[str, Any]:
-        """Emergency Kill Switch."""
+        """Emergency Kill Switch: Cancels all pending orders and liquidates all open positions."""
+        # 1. Cancel all open pending orders first to prevent accidental fills
+        orders = await self.get_orders()
+        cancelled_orders = 0
+        for o in orders:
+            if o.get("status") in ["OPEN", "TRIGGER PENDING"]:
+                await self.cancel_order(o.get("order_id"))
+                cancelled_orders += 1
+
+        # 2. Square off active open positions
         positions = await self.get_positions()
         closed = 0
         for p in positions:
@@ -128,7 +138,8 @@ class ZerodhaAdapter(BrokerAdapter):
                     exchange=p["exchange"],
                     transaction_type=side,
                     quantity=abs(qty),
+                    product_type=p.get("product", "MIS"),
                 )
                 await self.place_order(req)
                 closed += 1
-        return {"status": "success", "closed_positions": closed}
+        return {"status": "success", "closed_positions": closed, "cancelled_orders": cancelled_orders}
