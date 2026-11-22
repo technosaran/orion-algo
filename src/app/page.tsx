@@ -18,6 +18,7 @@ import {
 import { STRATEGY_TEMPLATES } from "@/lib/strategy-templates";
 import { loadPaperStateFromDb } from "@/lib/paperTradingStorage";
 import { formatINR } from "@/lib/formatters";
+import { AutonomousEngineCockpit } from "@/components/AutonomousEngineCockpit";
 
 export default function DashboardPage() {
   const [quotes, setQuotes] = useState<any[]>([]);
@@ -263,6 +264,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Autonomous Execution Cockpit & Emotion-Free RMS */}
+      <AutonomousEngineCockpit />
 
       {/* Featured Strategy Templates */}
       <div className="space-y-4">

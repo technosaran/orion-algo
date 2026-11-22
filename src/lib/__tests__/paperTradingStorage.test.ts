@@ -27,6 +27,8 @@ describe("Paper Trading Calculations & Summary", () => {
       botActive: false,
       botStrategyId: "rsi_mean_reversion",
       botSpeedSec: 3,
+      botExecutionMode: "EQUITY",
+      botMoneyness: "ATM",
       lastUpdated: Date.now(),
     };
 
@@ -65,6 +67,8 @@ describe("Paper Trading Calculations & Summary", () => {
       botActive: false,
       botStrategyId: "rsi_mean_reversion",
       botSpeedSec: 3,
+      botExecutionMode: "EQUITY",
+      botMoneyness: "ATM",
       lastUpdated: Date.now(),
     };
 
@@ -102,6 +106,8 @@ describe("Paper Trading Calculations & Summary", () => {
       botActive: false,
       botStrategyId: "rsi_mean_reversion",
       botSpeedSec: 3,
+      botExecutionMode: "EQUITY",
+      botMoneyness: "ATM",
       lastUpdated: Date.now(),
     };
 
