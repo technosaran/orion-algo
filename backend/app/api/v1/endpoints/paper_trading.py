@@ -230,3 +230,31 @@ def toggle_algo_bot(active: Optional[bool] = None, strategy_id: Optional[str] = 
         "bot_active": next_active,
         "bot_strategy_id": strategy_id or account.get("bot_strategy_id"),
     }
+
+
+class SimulateSessionRequest(BaseModel):
+    symbol: str = "NIFTY50"
+    strategy_id: str = "ema_crossover"
+    ticks_count: int = 60
+    initial_balance: float = 500000.0
+    base_price: float = 24500.0
+    volatility: float = 0.002
+    max_daily_loss: float = 10000.0
+    seed: Optional[int] = 42
+
+
+@router.post("/simulate-session")
+def run_simulated_session_endpoint(req: SimulateSessionRequest):
+    """Executes a simulated trading session on demand for 24/7 off-hours testing."""
+    from app.services.simulation_runner import simulate_trading_session
+    return simulate_trading_session(
+        symbol=req.symbol,
+        strategy_id=req.strategy_id,
+        ticks_count=req.ticks_count,
+        initial_balance=req.initial_balance,
+        base_price=req.base_price,
+        volatility=req.volatility,
+        max_daily_loss=req.max_daily_loss,
+        seed=req.seed,
+    )
+
