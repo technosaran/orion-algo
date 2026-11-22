@@ -52,6 +52,8 @@ export function AutonomousEngineCockpit() {
         const data = await res.json();
         setKillSwitchTripped(data.killSwitchTripped || false);
         setMaxDailyLoss(data.maxDailyLossLimit || 10000);
+        setDailyLoss(data.dailyRealizedLoss || 0);
+        setCooldownRemaining(data.cooldownRemainingMinutes || 0);
       }
 
       const accRes = await fetch("http://localhost:8000/api/v1/paper-trading/account").catch(() => null);

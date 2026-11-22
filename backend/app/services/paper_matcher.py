@@ -124,7 +124,7 @@ async def process_paper_engine_tick() -> Dict[str, Any]:
         qty = float(pos["quantity"])
         side = pos["side"].upper()
 
-        if side == "LONG":
+        if side in ["LONG", "BUY"]:
             unrealized = (current_price - entry_price) * qty
             unrealized_pct = ((current_price - entry_price) / entry_price) * 100.0
         else:
@@ -153,7 +153,7 @@ async def process_paper_engine_tick() -> Dict[str, Any]:
 
         # Check Stop Loss / Take Profit Hit
         exit_reason = None
-        if side == "LONG":
+        if side in ["LONG", "BUY"]:
             if sl and current_price <= sl:
                 exit_reason = "STOP_LOSS"
             elif tp and current_price >= tp:
@@ -216,7 +216,13 @@ async def process_paper_engine_tick() -> Dict[str, Any]:
     # 4. If Algo Bot is Active, Evaluate Multi-Strategy Signals (LONG and SHORT)
     if account.get("bot_active") and not is_square_off_time and not risk_manager.kill_switch_tripped:
         strat_id = account.get("bot_strategy_id", "vwap_supertrend")
-        target_symbol = "NIFTY50"
+        strategy_symbols = {
+            "vwap_supertrend": "NIFTY50",
+            "ema_crossover": "BANKNIFTY",
+            "rsi_mean_reversion": "NIFTY50",
+            "donchian_breakout": "RELIANCE",
+        }
+        target_symbol = strategy_symbols.get(strat_id, "NIFTY50")
         cur_price = price_map.get(target_symbol, 24500.0)
 
         # Check if an open position already exists on target_symbol
@@ -275,9 +281,9 @@ async def process_paper_engine_tick() -> Dict[str, Any]:
                         signal_side = "SELL"
                         trigger_note = f"20-Period Low Breakdown (₹{cur_price:.2f} <= ₹{lowest_20:.2f})"
 
-                if signal_side and float(account.get("cash_balance", 0)) > cur_price * 10:
-                    alloc = float(account["cash_balance"]) * 0.10
-                    qty = max(1, int(alloc / cur_price))
+                if signal_side and float(account.get("cash_balance", 0)) >= cur_price:
+                    alloc = min(float(account["cash_balance"]) * 0.10, 50000.0)
+                    qty = max(1, int(alloc / cur_price)) if cur_price > 0 else 1
 
                     # Mathematically computed initial Stop-Loss and Take-Profit
                     if signal_side == "BUY":

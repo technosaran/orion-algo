@@ -37,14 +37,14 @@ def run_monte_carlo_drawdown_simulation(
     ruin_count = 0
 
     for _ in range(iterations):
-        shuffled_pnl = list(pnl_list)
-        rng.shuffle(shuffled_pnl)
+        # Bootstrap resampling with replacement for robust empirical distribution
+        resampled_pnl = [rng.choice(pnl_list) for _ in range(len(pnl_list))]
 
         equity = initial_capital
         peak = initial_capital
         max_dd = 0.0
 
-        for pnl in shuffled_pnl:
+        for pnl in resampled_pnl:
             equity += pnl
             if equity > peak:
                 peak = equity

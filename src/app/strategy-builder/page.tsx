@@ -9,6 +9,7 @@ import {
   BarChart3,
   Sliders,
   TrendingUp,
+  Sparkles,
 } from "lucide-react";
 
 import { StrategyConfig, BacktestResult } from "@/types/strategy";
@@ -30,6 +31,10 @@ import { BacktestResultsSection } from "@/components/strategy-builder/BacktestRe
 import { CodeExportModal } from "@/components/strategy-builder/CodeExportModal";
 import { TemplatesModal } from "@/components/strategy-builder/TemplatesModal";
 import { STRATEGY_TEMPLATES } from "@/lib/strategy-templates";
+import { formatINR, getInstrumentLotSize } from "@/lib/formatters";
+import { loadPaperStateFromDb, savePaperState, saveAccountToDb } from "@/lib/paperTradingStorage";
+import Link from "next/link";
+import { CheckCircle2, ArrowRight } from "lucide-react";
 
 function createBlankStrategy(): StrategyConfig {
   return {
@@ -122,19 +127,39 @@ export default function StrategyBuilderPage() {
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isCodeExportOpen, setIsCodeExportOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [deployBotSuccess, setDeployBotSuccess] = useState<string | null>(null);
 
-  // Load template from URL query param if present, or load saved strategies from DB on mount
+  // Load symbol or template from URL query param if present, or load saved strategies from DB on mount
   useEffect(() => {
     let mounted = true;
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
+      const symbolParam = params.get("symbol");
       const templateId = params.get("template");
+
+      let baseStrat: StrategyConfig | null = null;
       if (templateId) {
         const found = STRATEGY_TEMPLATES.find((t) => t.id === templateId);
-        if (found && mounted) {
+        if (found) baseStrat = { ...found };
+      }
+
+      if (symbolParam) {
+        const cleanSym = symbolParam.toUpperCase().trim();
+        const lot = getInstrumentLotSize(cleanSym);
+        const isFno = ["NIFTY50", "BANKNIFTY", "SENSEX", "FINNIFTY", "CRUDEOIL", "GOLD"].includes(cleanSym);
+        const initial = baseStrat || createBlankStrategy();
+
+        if (mounted) {
           setStrategy({
-            ...found,
+            ...initial,
             id: `strat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            name: `${cleanSym} Momentum Strategy`,
+            symbol: cleanSym,
+            assetClass: isFno ? "nse_fno" : "nse_equity",
+            positionSizing: {
+              ...initial.positionSizing,
+              lotSize: lot,
+            },
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           });
@@ -144,10 +169,28 @@ export default function StrategyBuilderPage() {
               if (strategies.length > 0) setSavedStrategies(strategies);
             }
           });
-          return () => {
-            mounted = false;
-          };
         }
+        return () => {
+          mounted = false;
+        };
+      }
+
+      if (baseStrat && mounted) {
+        setStrategy({
+          ...baseStrat,
+          id: `strat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        getStrategiesFromDb().then(({ strategies, source }) => {
+          if (mounted) {
+            setDbSource(source);
+            if (strategies.length > 0) setSavedStrategies(strategies);
+          }
+        });
+        return () => {
+          mounted = false;
+        };
       }
     }
 
@@ -293,6 +336,33 @@ export default function StrategyBuilderPage() {
     setBacktestResult(null);
   };
 
+  const handleDeployToPaperBot = async () => {
+    try {
+      const { state: currentPaperState } = await loadPaperStateFromDb();
+      const updated = {
+        ...currentPaperState,
+        botActive: true,
+        botStrategyId: strategy.name.toLowerCase().includes("supertrend")
+          ? "supertrend_breakout"
+          : strategy.name.toLowerCase().includes("ema")
+          ? "ema_crossover"
+          : "rsi_mean_reversion",
+      };
+      savePaperState(updated);
+      await saveAccountToDb(
+        updated.initialBalance,
+        updated.cashBalance,
+        true,
+        updated.botStrategyId,
+        updated.botSpeedSec
+      );
+      setDeployBotSuccess(`Strategy "${strategy.name}" is now running in Paper Trading!`);
+      setTimeout(() => setDeployBotSuccess(null), 5000);
+    } catch (err) {
+      console.warn("Deploy bot error:", err);
+    }
+  };
+
   const navSections: {
     id: "all" | "1" | "2" | "3" | "4" | "5";
     label: string;
@@ -327,6 +397,42 @@ export default function StrategyBuilderPage() {
         saveStatus={saveStatus}
         dbSource={dbSource}
       />
+
+      {deployBotSuccess && (
+        <div className="mx-6 mt-3 p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center justify-between gap-3 animate-in fade-in shrink-0">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{deployBotSuccess}</span>
+          </div>
+          <Link
+            href="/paper-trading"
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold text-[11px] hover:bg-emerald-400 shrink-0"
+          >
+            <span>Open Paper Trading</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+
+      {backtestResult && !deployBotSuccess && (
+        <div className="mx-6 mt-3 p-3 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-semibold flex items-center justify-between gap-3 animate-in fade-in shrink-0">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span>
+              Backtest complete for {strategy.symbol}: {backtestResult.metrics.totalTrades} trades,{" "}
+              {backtestResult.metrics.winRate}% win rate, {formatINR(backtestResult.metrics.netProfit)}{" "}
+              net profit.
+            </span>
+          </div>
+          <button
+            onClick={handleDeployToPaperBot}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] transition-all shadow-sm shadow-emerald-500/20 active:scale-98 shrink-0"
+          >
+            <span>Deploy to Paper Bot</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* When in Simple Mode, show the clean 3-step intuitive builder */}
       {isSimpleMode ? (

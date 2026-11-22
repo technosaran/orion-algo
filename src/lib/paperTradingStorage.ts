@@ -5,6 +5,8 @@ import {
   ClosedTrade,
   PortfolioSummary,
   BotLog,
+  BotExecutionMode,
+  BotMoneyness,
 } from "@/types/paperTrading";
 
 const STORAGE_KEY = "orion_paper_trading_state_v1";
@@ -19,6 +21,8 @@ export interface StoredPaperState {
   botActive: boolean;
   botStrategyId: string;
   botSpeedSec: number;
+  botExecutionMode: BotExecutionMode;
+  botMoneyness: BotMoneyness;
   lastUpdated: number;
 }
 
@@ -35,6 +39,8 @@ export function getDefaultState(): StoredPaperState {
     botActive: false,
     botStrategyId: "rsi_mean_reversion",
     botSpeedSec: 3,
+    botExecutionMode: "OPTION_BUYING",
+    botMoneyness: "ATM",
     lastUpdated: 0,
   };
 }
@@ -123,6 +129,8 @@ export async function loadPaperStateFromDb(): Promise<{
         botActive: Boolean(acc.bot_active),
         botStrategyId: String(acc.bot_strategy_id || "rsi_mean_reversion"),
         botSpeedSec: Number(acc.bot_speed_sec) || 3,
+        botExecutionMode: (acc.bot_execution_mode as BotExecutionMode) || "OPTION_BUYING",
+        botMoneyness: (acc.bot_moneyness as BotMoneyness) || "ATM",
         lastUpdated: Date.now(),
       };
 
@@ -190,7 +198,9 @@ export async function saveAccountToDb(
   cashBalance: number,
   botActive: boolean,
   botStrategyId: string,
-  botSpeedSec: number
+  botSpeedSec: number,
+  botExecutionMode: BotExecutionMode = "OPTION_BUYING",
+  botMoneyness: BotMoneyness = "ATM"
 ): Promise<boolean> {
   try {
     const { error } = await supabase.from("paper_account").upsert({
@@ -200,6 +210,8 @@ export async function saveAccountToDb(
       bot_active: botActive,
       bot_strategy_id: botStrategyId,
       bot_speed_sec: botSpeedSec,
+      bot_execution_mode: botExecutionMode,
+      bot_moneyness: botMoneyness,
       updated_at: new Date().toISOString(),
     });
     return !error;

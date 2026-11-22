@@ -34,6 +34,7 @@ def simulate_trading_session(
         max_daily_loss=max_daily_loss,
         max_capital_per_trade_pct=0.20,
         max_open_positions=2,
+        auto_square_off_time="23:59",  # Permissive cutoff for 24/7 off-hours simulation; tick-based cutoff used below
         max_consecutive_losses=2,
         cooldown_minutes=10,
     )

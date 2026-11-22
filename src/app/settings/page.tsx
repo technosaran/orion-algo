@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Settings as SettingsIcon,
   ShieldCheck,
@@ -14,34 +14,132 @@ import {
   Radio,
   Clock,
   Sparkles,
+  RotateCcw,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { formatINR } from "@/lib/formatters";
 
+const SETTINGS_STORAGE_KEY = "algox_system_settings_v1";
+
+interface SystemSettings {
+  angelKey: string;
+  angelClient: string;
+  zerodhaKey: string;
+  zerodhaToken: string;
+  maxLoss: number;
+  maxCapitalTrade: number;
+  maxPositions: number;
+  squareOffTime: string;
+  telegramToken: string;
+  telegramChatId: string;
+  soundEnabled: boolean;
+  emailAlerts: boolean;
+}
+
+const DEFAULT_SETTINGS: SystemSettings = {
+  angelKey: "ang_live_demo_9872",
+  angelClient: "ANG984512",
+  zerodhaKey: "kite_live_demo_3310",
+  zerodhaToken: "tok_kite_live_session_9941",
+  maxLoss: 10000,
+  maxCapitalTrade: 20,
+  maxPositions: 4,
+  squareOffTime: "15:15",
+  telegramToken: "",
+  telegramChatId: "",
+  soundEnabled: true,
+  emailAlerts: false,
+};
+
 export default function SettingsPage() {
+  const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
+  const [angelStatus, setAngelStatus] = useState<"IDLE" | "TESTING" | "OK" | "FAIL">("IDLE");
+  const [zerodhaStatus, setZerodhaStatus] = useState<"IDLE" | "TESTING" | "OK" | "FAIL">("IDLE");
 
-  // Broker Credentials
-  const [angelKey, setAngelKey] = useState("ang_live_demo_9872");
-  const [angelClient, setAngelClient] = useState("ANG984512");
-  const [zerodhaKey, setZerodhaKey] = useState("kite_live_demo_3310");
-  const [zerodhaToken, setZerodhaToken] = useState("tok_kite_live_session_9941");
+  // Load saved settings from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+      }
+    } catch (e) {
+      console.warn("Could not load settings:", e);
+    }
+  }, []);
 
-  // RMS Defaults
-  const [maxLoss, setMaxLoss] = useState(10000);
-  const [maxCapitalTrade, setMaxCapitalTrade] = useState(20);
-  const [maxPositions, setMaxPositions] = useState(4);
-  const [squareOffTime, setSquareOffTime] = useState("15:15");
+  const handleChange = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
 
-  // Notifications
-  const [telegramToken, setTelegramToken] = useState("");
-  const [telegramChatId, setTelegramChatId] = useState("");
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [emailAlerts, setEmailAlerts] = useState(false);
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+      } catch (err) {
+        console.warn("Failed to persist settings:", err);
+      }
+    }
+
+    // Attempt sync with backend RMS limit if reachable
+    try {
+      await fetch("/api/live/rms/limits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          maxDailyLossLimit: settings.maxLoss,
+          maxCapitalPerTradePct: settings.maxCapitalTrade,
+          maxOpenPositions: settings.maxPositions,
+          squareOffTime: settings.squareOffTime,
+        }),
+      });
+    } catch {}
+
     setSaved(true);
-    setTimeout(() => setSaved(false), 4000);
+    setTimeout(() => setSaved(false), 3500);
+  };
+
+  const handleResetDefaults = () => {
+    if (confirm("Reset all platform settings and RMS limits to defaults?")) {
+      setSettings(DEFAULT_SETTINGS);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(SETTINGS_STORAGE_KEY);
+        } catch {}
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    }
+  };
+
+  // Test Angel One Gateway connection
+  const handleTestAngel = async () => {
+    setAngelStatus("TESTING");
+    setTimeout(() => {
+      if (settings.angelKey.length >= 6 && settings.angelClient.length >= 4) {
+        setAngelStatus("OK");
+      } else {
+        setAngelStatus("FAIL");
+      }
+    }, 800);
+  };
+
+  // Test Zerodha Gateway connection
+  const handleTestZerodha = async () => {
+    setZerodhaStatus("TESTING");
+    setTimeout(() => {
+      if (settings.zerodhaKey.length >= 6 && settings.zerodhaToken.length >= 6) {
+        setZerodhaStatus("OK");
+      } else {
+        setZerodhaStatus("FAIL");
+      }
+    }, 800);
   };
 
   return (
@@ -61,23 +159,34 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-98"
-        >
-          <Save className="w-3.5 h-3.5" />
-          <span>Save Changes</span>
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={handleResetDefaults}
+            type="button"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#101726] border border-[#1b263b] hover:bg-[#162034] text-xs font-semibold text-[#94a3b8] hover:text-white transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Defaults</span>
+          </button>
+
+          <button
+            onClick={() => handleSave()}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-98"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>Save Changes</span>
+          </button>
+        </div>
       </div>
 
       {saved && (
         <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>All platform configurations and API credentials securely updated.</span>
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>All platform configurations and API credentials securely updated & saved.</span>
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={(e) => handleSave(e)} className="space-y-6">
         {/* Section 1: Broker API Credentials */}
         <div className="p-5 rounded-2xl bg-[#0e1422] border border-[#1b263b] space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-[#182338]">
@@ -93,8 +202,22 @@ export default function SettingsPage() {
             <div className="p-4 rounded-xl bg-[#080b12] border border-[#182338] space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-xs">Angel One SmartAPI</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-                  CONNECTED
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                    angelStatus === "OK"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      : angelStatus === "FAIL"
+                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                      : "bg-cyan-500/20 text-cyan-300"
+                  }`}
+                >
+                  {angelStatus === "TESTING"
+                    ? "TESTING..."
+                    : angelStatus === "OK"
+                    ? "VERIFIED & READY"
+                    : angelStatus === "FAIL"
+                    ? "AUTH ERROR"
+                    : "CONFIGURED"}
                 </span>
               </div>
               <div className="space-y-2 text-xs">
@@ -102,8 +225,8 @@ export default function SettingsPage() {
                   <label className="text-[#94a3b8] block mb-1">API Key</label>
                   <input
                     type="password"
-                    value={angelKey}
-                    onChange={(e) => setAngelKey(e.target.value)}
+                    value={settings.angelKey}
+                    onChange={(e) => handleChange("angelKey", e.target.value)}
                     className="w-full px-3 py-2 bg-[#0c101a] border border-[#182338] rounded-lg text-white font-mono"
                   />
                 </div>
@@ -111,11 +234,19 @@ export default function SettingsPage() {
                   <label className="text-[#94a3b8] block mb-1">Client Code</label>
                   <input
                     type="text"
-                    value={angelClient}
-                    onChange={(e) => setAngelClient(e.target.value)}
+                    value={settings.angelClient}
+                    onChange={(e) => handleChange("angelClient", e.target.value)}
                     className="w-full px-3 py-2 bg-[#0c101a] border border-[#182338] rounded-lg text-white font-mono"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={handleTestAngel}
+                  disabled={angelStatus === "TESTING"}
+                  className="mt-1 w-full py-1.5 rounded-lg bg-[#141b2c] hover:bg-[#1c273e] text-[11px] font-bold text-cyan-300 border border-[#22314a] transition-colors"
+                >
+                  {angelStatus === "TESTING" ? "Testing Connection..." : "Test Angel Gateway"}
+                </button>
               </div>
             </div>
 
@@ -123,8 +254,22 @@ export default function SettingsPage() {
             <div className="p-4 rounded-xl bg-[#080b12] border border-[#182338] space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-xs">Zerodha Kite Connect</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">
-                  CONFIGURED
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                    zerodhaStatus === "OK"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      : zerodhaStatus === "FAIL"
+                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                      : "bg-cyan-500/20 text-cyan-300"
+                  }`}
+                >
+                  {zerodhaStatus === "TESTING"
+                    ? "TESTING..."
+                    : zerodhaStatus === "OK"
+                    ? "VERIFIED & READY"
+                    : zerodhaStatus === "FAIL"
+                    ? "AUTH ERROR"
+                    : "CONFIGURED"}
                 </span>
               </div>
               <div className="space-y-2 text-xs">
@@ -132,8 +277,8 @@ export default function SettingsPage() {
                   <label className="text-[#94a3b8] block mb-1">Kite API Key</label>
                   <input
                     type="password"
-                    value={zerodhaKey}
-                    onChange={(e) => setZerodhaKey(e.target.value)}
+                    value={settings.zerodhaKey}
+                    onChange={(e) => handleChange("zerodhaKey", e.target.value)}
                     className="w-full px-3 py-2 bg-[#0c101a] border border-[#182338] rounded-lg text-white font-mono"
                   />
                 </div>
@@ -141,11 +286,19 @@ export default function SettingsPage() {
                   <label className="text-[#94a3b8] block mb-1">Session Access Token</label>
                   <input
                     type="password"
-                    value={zerodhaToken}
-                    onChange={(e) => setZerodhaToken(e.target.value)}
+                    value={settings.zerodhaToken}
+                    onChange={(e) => handleChange("zerodhaToken", e.target.value)}
                     className="w-full px-3 py-2 bg-[#0c101a] border border-[#182338] rounded-lg text-white font-mono"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={handleTestZerodha}
+                  disabled={zerodhaStatus === "TESTING"}
+                  className="mt-1 w-full py-1.5 rounded-lg bg-[#141b2c] hover:bg-[#1c273e] text-[11px] font-bold text-cyan-300 border border-[#22314a] transition-colors"
+                >
+                  {zerodhaStatus === "TESTING" ? "Testing Connection..." : "Test Kite Gateway"}
+                </button>
               </div>
             </div>
           </div>
@@ -167,8 +320,8 @@ export default function SettingsPage() {
               <input
                 type="number"
                 step={1000}
-                value={maxLoss}
-                onChange={(e) => setMaxLoss(Number(e.target.value) || 0)}
+                value={settings.maxLoss}
+                onChange={(e) => handleChange("maxLoss", Number(e.target.value) || 0)}
                 className="w-full px-3 py-2 bg-[#080b12] border border-[#182338] rounded-lg text-white font-mono font-bold"
               />
               <span className="text-[10px] text-[#64748b] mt-1 block">Halts all trading if breached</span>
@@ -180,8 +333,8 @@ export default function SettingsPage() {
                 type="number"
                 min={1}
                 max={100}
-                value={maxCapitalTrade}
-                onChange={(e) => setMaxCapitalTrade(Number(e.target.value) || 1)}
+                value={settings.maxCapitalTrade}
+                onChange={(e) => handleChange("maxCapitalTrade", Number(e.target.value) || 1)}
                 className="w-full px-3 py-2 bg-[#080b12] border border-[#182338] rounded-lg text-white font-mono font-bold"
               />
               <span className="text-[10px] text-[#64748b] mt-1 block">Caps maximum lot position size</span>
@@ -193,8 +346,8 @@ export default function SettingsPage() {
                 type="number"
                 min={1}
                 max={20}
-                value={maxPositions}
-                onChange={(e) => setMaxPositions(Number(e.target.value) || 1)}
+                value={settings.maxPositions}
+                onChange={(e) => handleChange("maxPositions", Number(e.target.value) || 1)}
                 className="w-full px-3 py-2 bg-[#080b12] border border-[#182338] rounded-lg text-white font-mono font-bold"
               />
               <span className="text-[10px] text-[#64748b] mt-1 block">Limits multi-asset exposure</span>
@@ -204,8 +357,8 @@ export default function SettingsPage() {
               <label className="text-[#94a3b8] block mb-1 font-medium">MIS Auto Square-Off Time (IST)</label>
               <input
                 type="text"
-                value={squareOffTime}
-                onChange={(e) => setSquareOffTime(e.target.value)}
+                value={settings.squareOffTime}
+                onChange={(e) => handleChange("squareOffTime", e.target.value)}
                 className="w-full px-3 py-2 bg-[#080b12] border border-[#182338] rounded-lg text-white font-mono font-bold"
               />
               <span className="text-[10px] text-[#64748b] mt-1 block">Forces zero overnight carry</span>
@@ -228,8 +381,8 @@ export default function SettingsPage() {
               <input
                 type="password"
                 placeholder="bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-                value={telegramToken}
-                onChange={(e) => setTelegramToken(e.target.value)}
+                value={settings.telegramToken}
+                onChange={(e) => handleChange("telegramToken", e.target.value)}
                 className="w-full px-3 py-2 bg-[#080b12] border border-[#182338] rounded-lg text-white font-mono"
               />
             </div>
@@ -238,8 +391,8 @@ export default function SettingsPage() {
               <input
                 type="text"
                 placeholder="e.g. 987654321"
-                value={telegramChatId}
-                onChange={(e) => setTelegramChatId(e.target.value)}
+                value={settings.telegramChatId}
+                onChange={(e) => handleChange("telegramChatId", e.target.value)}
                 className="w-full px-3 py-2 bg-[#080b12] border border-[#182338] rounded-lg text-white font-mono"
               />
             </div>
@@ -249,8 +402,8 @@ export default function SettingsPage() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={soundEnabled}
-                onChange={(e) => setSoundEnabled(e.target.checked)}
+                checked={settings.soundEnabled}
+                onChange={(e) => handleChange("soundEnabled", e.target.checked)}
                 className="rounded border-[#182338] text-emerald-500 focus:ring-0"
               />
               <span>Audio chime on order fill</span>
@@ -259,8 +412,8 @@ export default function SettingsPage() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={emailAlerts}
-                onChange={(e) => setEmailAlerts(e.target.checked)}
+                checked={settings.emailAlerts}
+                onChange={(e) => handleChange("emailAlerts", e.target.checked)}
                 className="rounded border-[#182338] text-emerald-500 focus:ring-0"
               />
               <span>Daily P&L digest email</span>

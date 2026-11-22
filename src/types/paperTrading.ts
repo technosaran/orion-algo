@@ -22,6 +22,8 @@ export type OrderSide = "BUY" | "SELL";
 export type PositionSide = "LONG" | "SHORT";
 export type OrderType = "MARKET" | "LIMIT" | "STOP";
 export type OrderStatus = "FILLED" | "PENDING" | "CANCELLED" | "REJECTED";
+export type BotExecutionMode = "EQUITY" | "OPTION_BUYING" | "OPTION_SELLING";
+export type BotMoneyness = "ATM" | "ITM" | "OTM";
 
 export interface PaperOrder {
   id: string;
@@ -40,6 +42,11 @@ export interface PaperOrder {
   isAlgoTrade?: boolean;
   algoStrategyId?: string;
   note?: string;
+  underlyingSymbol?: string;
+  optionType?: "CE" | "PE";
+  strikePrice?: number;
+  expiryDate?: string;
+  moneyness?: BotMoneyness;
 }
 
 export interface PaperPosition {
@@ -55,6 +62,12 @@ export interface PaperPosition {
   stopLoss?: number;
   unrealizedPnl: number;
   unrealizedPnlPercent: number;
+  underlyingSymbol?: string;
+  optionType?: "CE" | "PE";
+  strikePrice?: number;
+  expiryDate?: string;
+  moneyness?: BotMoneyness;
+  delta?: number;
 }
 
 export interface ClosedTrade {
@@ -71,6 +84,9 @@ export interface ClosedTrade {
   closedAt: number;
   closeReason: "MANUAL" | "TAKE_PROFIT" | "STOP_LOSS" | "ALGO_EXIT";
   isAlgoTrade?: boolean;
+  underlyingSymbol?: string;
+  optionType?: "CE" | "PE";
+  strikePrice?: number;
 }
 
 export interface PortfolioSummary {

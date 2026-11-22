@@ -35,6 +35,19 @@ class RiskManager:
         self.daily_floating_loss = 0.0
         self.consecutive_losses = 0
         self.cooldown_until: Optional[datetime] = None
+        self._current_date = datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
+
+    def _check_daily_reset(self):
+        """Automatically rolls over daily loss and cooldowns when the trading date advances."""
+        ist = timezone(timedelta(hours=5, minutes=30))
+        today = datetime.now(ist).date()
+        if today != self._current_date:
+            self._current_date = today
+            self.daily_realized_loss = 0.0
+            self.daily_floating_loss = 0.0
+            self.consecutive_losses = 0
+            self.cooldown_until = None
+            logger.info(f"[RMS] New trading session detected ({today}). Daily risk counters reset.")
 
     def trip_kill_switch(self, reason: str = "MANUAL_TRIGGER"):
         """Instantly trips the kill switch, freezing all algo actions."""
@@ -42,11 +55,13 @@ class RiskManager:
         logger.warning(f"🚨 KILL SWITCH TRIPPED: {reason}")
 
     def reset_kill_switch(self):
-        """Resets the kill switch after trader confirmation."""
+        """Resets the kill switch after trader confirmation, clearing daily realized loss."""
         self.kill_switch_tripped = False
         self.cooldown_until = None
         self.consecutive_losses = 0
-        logger.info("Kill switch reset to normal standby.")
+        self.daily_realized_loss = 0.0
+        self.daily_floating_loss = 0.0
+        logger.info("Kill switch reset to normal standby. Daily loss ceiling cleared.")
 
     def is_intraday_square_off_time(self) -> bool:
         """Checks if current IST time is past 15:15 PM."""
@@ -75,6 +90,7 @@ class RiskManager:
         - Tracks consecutive losses and triggers anti-revenge trading cooldown.
         - Checks daily loss circuit breaker.
         """
+        self._check_daily_reset()
         if pnl < 0:
             loss_amount = abs(pnl)
             self.daily_realized_loss += loss_amount
@@ -99,6 +115,7 @@ class RiskManager:
 
     def update_floating_drawdown(self, unrealized_pnl: float):
         """Monitors floating unrealized MTM drawdown to trigger circuit breaker before damage escalates."""
+        self._check_daily_reset()
         self.daily_floating_loss = abs(unrealized_pnl) if unrealized_pnl < 0 else 0.0
         total_risk_exposure = self.daily_realized_loss + self.daily_floating_loss
         if total_risk_exposure >= self.max_daily_loss:
@@ -118,16 +135,25 @@ class RiskManager:
         Ratchets trailing stop loss monotonically in favor of the trade:
         - LONG: As price moves up, SL moves up. SL NEVER moves down.
         - SHORT: As price moves down, SL moves down. SL NEVER moves up.
+        - Breakeven Ratchet: If profit reaches >= 1.5R, SL automatically locks to at least entry_price.
         """
         side_upper = side.upper()
+        initial_risk = abs(entry_price - current_sl) if current_sl > 0 else 0.0
+
         if side_upper in ["LONG", "BUY"]:
             # For LONG, trailing SL sits trail_pct below current high/price
             new_sl = round(current_price * (1.0 - trail_pct), 2)
+            # Breakeven ratchet if profit >= 1.5 * initial_risk
+            if initial_risk > 0 and (current_price - entry_price) >= 1.5 * initial_risk:
+                new_sl = max(new_sl, entry_price)
             # Only ratchet UP
             return max(current_sl, new_sl)
         else:
             # For SHORT, trailing SL sits trail_pct above current low/price
             new_sl = round(current_price * (1.0 + trail_pct), 2)
+            # Breakeven ratchet if profit >= 1.5 * initial_risk
+            if initial_risk > 0 and (entry_price - current_price) >= 1.5 * initial_risk:
+                new_sl = min(new_sl, entry_price)
             # Only ratchet DOWN
             return min(current_sl, new_sl)
 
@@ -146,6 +172,7 @@ class RiskManager:
         5. Max open positions not exceeded
         6. Position size within capital limit
         """
+        self._check_daily_reset()
         if self.kill_switch_tripped:
             return {"allowed": False, "reason": "Kill Switch is ACTIVE. All trading halted."}
 

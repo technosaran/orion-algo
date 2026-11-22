@@ -78,6 +78,7 @@ async def connect_broker(req: BrokerConnectRequest):
 @router.get("/status")
 def get_live_status():
     """Returns active broker connection status and RMS state."""
+    in_cooldown, remaining_mins = risk_manager.is_in_cooldown()
     return {
         "connected": _active_broker is not None and getattr(_active_broker, "authenticated", False),
         "broker": _broker_name,
@@ -85,6 +86,8 @@ def get_live_status():
         "isSquareOffTime": risk_manager.is_intraday_square_off_time(),
         "dailyRealizedLoss": risk_manager.daily_realized_loss,
         "maxDailyLossLimit": risk_manager.max_daily_loss,
+        "inCooldown": in_cooldown,
+        "cooldownRemainingMinutes": remaining_mins,
     }
 
 

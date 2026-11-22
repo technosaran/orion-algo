@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   TrendingUp,
   TrendingDown,
@@ -243,8 +244,17 @@ export default function NSETerminalPage() {
                       <td className="py-2 px-3 text-right font-bold text-emerald-400 border-r border-[#1b263b]">
                         ₹{ce.lastPrice?.toFixed(2) || "--"}
                       </td>
-                      <td className={`py-2 px-4 text-center font-bold border-r border-[#1b263b] ${isAtm ? "bg-cyan-500/20 text-cyan-300" : "bg-[#101726] text-white"}`}>
-                        {strike}
+                      <td className={`py-2 px-2 text-center font-bold border-r border-[#1b263b] ${isAtm ? "bg-cyan-500/20 text-cyan-300" : "bg-[#101726] text-white"}`}>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span>{strike}</span>
+                          <Link
+                            href={`/options-lab?symbol=${selectedSymbol}&strike=${strike}&type=CE`}
+                            className="px-1.5 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 text-[9px] font-sans font-bold"
+                            title="Open in Options Lab"
+                          >
+                            Lab
+                          </Link>
+                        </div>
                       </td>
                       <td className="py-2 px-3 text-left font-bold text-rose-400">
                         ₹{pe.lastPrice?.toFixed(2) || "--"}
@@ -373,6 +383,7 @@ export default function NSETerminalPage() {
                     <th className="py-2 text-right">LTP (₹)</th>
                     <th className="py-2 text-right">% Change</th>
                     <th className="py-2 text-right">Volume</th>
+                    <th className="py-2 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#162033]">
@@ -382,6 +393,14 @@ export default function NSETerminalPage() {
                       <td className="py-2 text-right text-[#cbd5e1]">{g.ltp?.toFixed(2)}</td>
                       <td className="py-2 text-right text-emerald-400 font-bold">+{g.pChange}%</td>
                       <td className="py-2 text-right text-[#64748b]">{g.volume?.toLocaleString("en-IN")}</td>
+                      <td className="py-2 text-right">
+                        <Link
+                          href={`/strategy-builder?symbol=${encodeURIComponent(g.symbol)}`}
+                          className="px-2 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-[10px]"
+                        >
+                          Build
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -403,6 +422,7 @@ export default function NSETerminalPage() {
                     <th className="py-2 text-right">LTP (₹)</th>
                     <th className="py-2 text-right">% Change</th>
                     <th className="py-2 text-right">Volume</th>
+                    <th className="py-2 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#162033]">
@@ -412,6 +432,14 @@ export default function NSETerminalPage() {
                       <td className="py-2 text-right text-[#cbd5e1]">{l.ltp?.toFixed(2)}</td>
                       <td className="py-2 text-right text-rose-400 font-bold">{l.pChange}%</td>
                       <td className="py-2 text-right text-[#64748b]">{l.volume?.toLocaleString("en-IN")}</td>
+                      <td className="py-2 text-right">
+                        <Link
+                          href={`/strategy-builder?symbol=${encodeURIComponent(l.symbol)}`}
+                          className="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 font-bold text-[10px]"
+                        >
+                          Build
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
