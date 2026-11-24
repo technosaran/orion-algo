@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     live_trading,
     nse_terminal,
     options_lab,
+    ws_live,
 )
 
 api_router = APIRouter()
@@ -19,4 +20,5 @@ api_router.include_router(market_data.router, tags=["market-data"])
 api_router.include_router(live_trading.router, tags=["live-trading"])
 api_router.include_router(nse_terminal.router, tags=["nse-terminal"])
 api_router.include_router(options_lab.router, tags=["options-lab"])
+api_router.include_router(ws_live.router)
 
